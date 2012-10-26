@@ -1,7 +1,5 @@
 LINUX ?= /acc/sys/L865/usr/src/kernels/2.6.24.7-rt27/
 
-KBUILD_EXTRA_SYMBOLS += /acc/src/dsc/drivers/coht/vmebridge/driver/Module.symvers
-
 ccflags-y += -I /acc/src/dsc/drivers/coht/vmebridge/include/ -DDEBUG
 obj-m += svec.o
 
@@ -16,4 +14,4 @@ modules_install:
 clean:
 	rm -rf *.o *.ko  *.mod.c
 	rm -rf .*.o.cmd .*.ko.cmd  *.mod.c
-	rm -rf .tmp_versions modules.order Module.symvers
+	rm -rf .tmp_versions modules.order
