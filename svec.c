@@ -44,7 +44,6 @@ MODULE_PARM_DESC(index, "Index value for svec board");
 static struct class *svec_class;
 static dev_t svec_devno;
 
-
 static int __devinit svec_match(struct device *devp, unsigned int ndev)
 {
 	if (ndev >= base_num)
@@ -128,6 +127,7 @@ static int __init svec_init(void)
 		goto sysfs_dev_create_failed;
 	}
 	return 0;
+
 sysfs_dev_create_failed:
 	vme_unregister_driver(&svec_driver);
 out:
