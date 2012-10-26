@@ -24,6 +24,9 @@
 #define SVEC_MAX_DEVICES	32
 #define SVEC_DEFAULT_IDX	{ [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
 
+char *svec_fw_name = "fmc/svec-init.bin";
+module_param_named(fw_name, svec_fw_name, charp, 0444);
+
 static long base[SVEC_MAX_DEVICES];
 static unsigned int base_num;
 static int vector[SVEC_MAX_DEVICES];
@@ -41,8 +44,21 @@ MODULE_PARM_DESC(level, "IRQ level");
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for svec board");
 
-static struct class *svec_class;
-static dev_t svec_devno;
+struct svec_dev {
+	struct device		*dev;
+	struct resource		*area[3];	/* bar 0, 2, 4 */
+	void __iomem		*remap[3];	/* ioremap of bar 0, 2, 4 */
+	char			*submod_name;
+	/* struct work_struct	work; */
+	const struct firmware	*fw;
+	struct list_head	list;
+	unsigned long		irqcount;
+	void			*sub_priv;
+	struct fmc_device	*fmc;
+	int			irq_count;	/* for mezzanine use too */
+	struct completion	compl;
+	struct gpio_chip	*gpio;
+};
 
 static int __devinit svec_match(struct device *devp, unsigned int ndev)
 {
@@ -55,15 +71,70 @@ static int __devinit svec_match(struct device *devp, unsigned int ndev)
 	return 1;
 }
 
+int svec_load_fpga_file(struct svec_dev *svec, char *name)
+{
+	struct device *dev = svec->dev;
+#if 0
+	const struct firmware *fw;
+	int err = 0;
+
+	err = request_firmware(&fw, name, dev);
+	if (err < 0) {
+		dev_err(dev, "request firmware \"%s\": error %i\n", name, err);
+		return err;
+	}
+	dev_info(dev, "got file \"%s\", %i (0x%x) bytes\n",
+		 svec_fw_name, fw->size, fw->size);
+
+	err = svec_load_fpga(svec, fw->data, fw->size);
+	release_firmware(fw);
+        return err;
+#endif
+	dev_info(dev, "%s: file %s\n", __func__, name);
+	return 0;
+}
+
 static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 {
-	dev_dbg(pdev, "probing device %d\n", ndev);
-	return -ENODEV;
+	struct svec_dev *svec;
+	int ret = 0;
+
+	dev_info(pdev, "probe for device %02d\n", ndev);
+
+	svec = kzalloc(sizeof(*svec), GFP_KERNEL);
+	if (!svec)
+		return -ENOMEM;
+	svec->dev = pdev;
+
+	/* Remap our 3 bars */
+	dev_info(pdev, "mapping device %02d:%02d at address 0x%08lx\n",
+		ndev, index[ndev], base[ndev]);
+
+	if (ret)
+		goto out_unmap;
+
+	/* Load the golden FPGA binary to read the eeprom */
+	ret = svec_load_fpga_file(svec, svec_fw_name);
+	if (ret)
+		goto out_unmap;
+
+#if 0
+	ret = svec_fmc_create(svec);
+	if (ret)
+		goto out_unmap;
+#endif
+
+	/* Done */
+	dev_set_drvdata(pdev, svec);
+	return 0;
+
+out_unmap:
+	return ret;
 }
 
 static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 {
-	dev_dbg(pdev, "removing device %d\n", ndev);
+	dev_info(pdev, "removing device %d\n", ndev);
 	return 0;
 }
 
@@ -76,68 +147,15 @@ static struct vme_driver svec_driver = {
 	},
 };
 
-static int __init svec_sysfs_device_create(void)
-{
-	int error = 0;
-
-	svec_class = class_create(THIS_MODULE, "svec");
-
-	if (IS_ERR(svec_class)) {
-		printk(KERN_ERR PFX "Failed to create svec class\n");
-		error = PTR_ERR(svec_class);
-		goto out;
-	}
-
-	error = alloc_chrdev_region(&svec_devno, 0, SVEC_MAX_DEVICES, "svec");
-	if (error) {
-		printk(KERN_ERR PFX "Failed to allocate chrdev region\n");
-		goto alloc_chrdev_region_failed;
-	}
-
-	if (!error)
-		goto out;
-
-alloc_chrdev_region_failed:
-	class_destroy(svec_class);
-out:
-	return error;
-}
-
-static void svec_sysfs_device_remove(void)
-{
-	dev_t devno = MKDEV(MAJOR(svec_devno), 0);
-
-	class_destroy(svec_class);
-	unregister_chrdev_region(devno, SVEC_MAX_DEVICES);
-}
-
 static int __init svec_init(void)
 {
-	int error;
-
 	pr_debug(PFX "initializing driver\n");
-	error = vme_register_driver(&svec_driver, SVEC_MAX_DEVICES);
-	if (error) {
-		pr_err(PFX "could not register driver\n");
-		goto out;
-	}
-	error = svec_sysfs_device_create();
-	if (error) {
-		pr_err(PFX "could not create sysfs device\n");
-		goto sysfs_dev_create_failed;
-	}
-	return 0;
-
-sysfs_dev_create_failed:
-	vme_unregister_driver(&svec_driver);
-out:
-	return error;
+	return vme_register_driver(&svec_driver, SVEC_MAX_DEVICES);
 }
 
 static void __exit svec_exit(void)
 {
 	pr_debug(PFX "removing driver\n");
-	svec_sysfs_device_remove();
 	vme_unregister_driver(&svec_driver);
 }
 
