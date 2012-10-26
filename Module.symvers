@@ -16,6 +16,6 @@
 0x00000000	vme_do_dma	/acc/src/dsc/drivers/coht/vmebridge/driver/vmebus	EXPORT_SYMBOL_GPL
 0x00000000	return_controller	/acc/src/dsc/drivers/coht/vmebridge/driver/vmebus	EXPORT_SYMBOL_GPL
 0x00000000	vme_unregister_berr_handler	/acc/src/dsc/drivers/coht/vmebridge/driver/vmebus	EXPORT_SYMBOL_GPL
-0x00000000	vme_intclr	/acc/src/dsc/drivers/coht/vmebridge/driver/vmebus	EXPORT_SYMBOL_GPL
 0x00000000	vme_intset	/acc/src/dsc/drivers/coht/vmebridge/driver/vmebus	EXPORT_SYMBOL_GPL
+0x00000000	vme_intclr	/acc/src/dsc/drivers/coht/vmebridge/driver/vmebus	EXPORT_SYMBOL_GPL
 0x00000000	vme_get_window_attr	/acc/src/dsc/drivers/coht/vmebridge/driver/vmebus	EXPORT_SYMBOL_GPL
