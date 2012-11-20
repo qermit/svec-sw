@@ -23,19 +23,6 @@
 #define MS_TICKS 1
 #define TIMEOUT 1000
 
-struct svec_dev {
-	int 	                lun;
-	unsigned long		vmebase1;
-	unsigned long		vmebase2;
-	int 			vector;
-	int			level;
-	char			*fw_name;
-        struct device           *dev;
-	struct cdev		cdev;
-	char 			driver[16];
-	char			description[80];
-};
-
 /* Module parameters */
 char *svec_fw_name = "fmc/svec-init.bin";
 /*
@@ -156,10 +143,11 @@ int setup_csr_fa0 (void)
 	return 0;
 }
 
-int svec_load_fpga(struct svec_dev *svec, uint32_t *data, int size)
+int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 {
 
 	const uint32_t boot_seq[8] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
+	const uint32_t *data = blob;
 	const char svec_idr[4] = "SVEC";
 	void *loader_addr; /* FPGA loader virtual address */
 	uint32_t idc;
@@ -402,8 +390,10 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	
 	unmap_cs_csr();
 
+/*
 device_create_failed:
 	cdev_del(&svec->cdev);
+ */
 
 failed:
 	kfree(svec);
