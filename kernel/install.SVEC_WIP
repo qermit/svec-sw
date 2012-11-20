@@ -2,7 +2,7 @@
 echo Installing svec WIP driver...
 echo 8 > /proc/sys/kernel/printk
 
-/sbin/insmod svec.ko lun=0 vmebase1=0x900000 vmebase2=0x6000 vector=0x86 level=2
+/sbin/insmod svec.ko lun=0 vmebase1=0x900000 vmebase2=0x6000 vector=0x86 level=2 fw_name="fmc/golden-svec-20121017-1816.bin"
 MAJOR=`cat /proc/devices | awk '{if ($2 == "svec") printf $1}'`
 echo Making nodes for ${MODULE} major device svec ${MAJOR}
 if [ -z "$MAJOR" ]; then
