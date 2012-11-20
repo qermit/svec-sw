@@ -11,11 +11,20 @@
 #ifndef __SVEC_H__
 #define __SVEC_H__
 
+#include <linux/cdev.h>
 #include <linux/firmware.h>
 #include <linux/fmc.h>
+#include <vmebus.h>
 
 #define SVEC_MAX_DEVICES        32
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
+
+struct svec_dev;
+
+struct svec_card_ops {
+	int (*bootloader_unlock) (struct svec_dev *card);
+	int (*bootloader_check) (struct svec_dev *card);
+};
 
 /* Our device structure */
 struct svec_dev {
@@ -31,6 +40,9 @@ struct svec_dev {
 	struct cdev		cdev;
 	char 			driver[16];
 	char			description[80];
+
+	struct vme_mapping 	*cs_csr;
+	struct svec_card_ops	ops;
 
 	/* struct work_struct	work; */
 	const struct firmware	*fw;
@@ -68,6 +80,10 @@ extern int svec_eeprom_write(struct fmc_device *fmc, int i2c_addr,
 /* Functions in svec-gpio.c */
 extern int svec_gpio_init(struct fmc_device *fmc);
 extern void svec_gpio_exit(struct fmc_device *fmc);
+
+/* Functions in svec-sysfs.c */
+int svec_create_sysfs_files (struct svec_dev *card);
+void svec_remove_sysfs_files (struct svec_dev *card);
 
 
 #endif /* __SVEC_H__ */
