@@ -154,8 +154,8 @@ int svec_bootloader_unlock (struct svec_dev *svec)
 
 int svec_bootloader_check(struct svec_dev *svec)
 {
-    	char id_string[5]; /* Null terminated string. Should be 'SVEC' */
 	uint32_t idc;
+	char *buf = (char *)&idc;
 	void *addr;
 
 	/* Check if CS/CSR window is mapped */
@@ -164,20 +164,14 @@ int svec_bootloader_check(struct svec_dev *svec)
 		return -EINVAL;
 	}
 
-	addr = svec->cs_csr->kernel_va + BASE_LOADER + XLDR_REG_BTRIGR;
+	addr = svec->cs_csr->kernel_va + BASE_LOADER + XLDR_REG_IDR;
 
-	/* Check if we are really talking to a SVEC */
-	/* Looking for 'SVEC' string */
-	idc = swapbe32(ioread32(addr + XLDR_REG_IDR));
-	id_string[0] = (idc >> 24) & 0xff;
-	id_string[1] = (idc >> 16) & 0xff;
-	id_string[2] = (idc >> 8) & 0xff;
-	id_string[3] = (idc >> 0) & 0xff;
-	id_string[4] = 0;
+	idc = swapbe32(ioread32(addr));
+	idc = htonl(idc);
     
 	printk(KERN_INFO PFX "IDCode value %x.\n", idc);
 
-	if(strncmp(id_string, "SVEC", 4))
+	if(strncmp(buf, "SVEC", 4) == 0)
 	{
 		/* Bootloader active. Unlocked */ 
 		return 1;
@@ -235,10 +229,10 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 
 	if(strncmp(id_string, svec_idr, 4))
 	{
-	    printk(KERN_ERR PFX "Invalid IDCode value %d [%s].\n", idc, &id_string[0]);
+	    printk(KERN_ERR PFX "Invalid IDCode value %x [%s].\n", idc, &id_string[0]);
 	    return -EINVAL;
 	}
-	printk(KERN_INFO PFX "IDCode value %d [%s].\n", idc, &id_string[0]);
+	printk(KERN_INFO PFX "IDCode value %x [%s].\n", idc, &id_string[0]);
 
 	iowrite32(swapbe32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR); 
 	iowrite32(swapbe32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR); 
@@ -383,8 +377,6 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->fw_name = fw_name[ndev];
 	svec->dev = pdev;
 	svec->cs_csr = NULL;
-	svec->ops.bootloader_unlock = svec_bootloader_unlock;
-	svec->ops.bootloader_check = svec_bootloader_check;
 
 	/* Map CS/CSR space */
 	error = map_cs_csr(svec);

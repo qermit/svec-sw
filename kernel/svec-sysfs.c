@@ -13,45 +13,38 @@
 #include "svec.h"
 
 static ssize_t
-svec_show_bootloader_status(struct device *pdev, struct device_attribute *attr, char *buf)
+svec_show_bootloader_active(struct device *pdev, struct device_attribute *attr, char *buf)
 {
 	struct svec_dev *card = dev_get_drvdata(pdev);
 	size_t ret;
-	int locked;
+	int active;
 
-	if (!card->ops.bootloader_check)
+	active = svec_bootloader_check(card);
+	if (active < 0) 
 		return -EINVAL;
 	
-	locked = card->ops.bootloader_check(card);
-	if (locked < 0) 
-		return -EINVAL;
-	
-	if (locked == 0)
-		ret = snprintf(buf, PAGE_SIZE, "svec.%d: bootloader active (unlocked)\n", card->lun);
-	else
-		ret = snprintf(buf, PAGE_SIZE, "svec.%d: bootloader not active (locked)\n", card->lun);
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", active);
 
 	return ret;
 }
 
 static ssize_t
-svec_unlock_bootloader(struct device *pdev, struct device_attribute *attr, const char *buf, size_t count)
+svec_store_bootloader_active(struct device *pdev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct svec_dev *card = dev_get_drvdata(pdev);
 
-	if (!card->ops.bootloader_unlock)
-		return -EINVAL;
-
-	if (card->ops.bootloader_unlock(card) < 0)
-		return -EINVAL;
+	svec_bootloader_unlock(card);
 
 	return count;
 }
 
-static DEVICE_ATTR(unlock_bootloader, S_IWUSR | S_IRUGO, svec_show_bootloader_status, svec_unlock_bootloader);
+static DEVICE_ATTR(bootloader_active, 
+			S_IWUSR | S_IRUGO, 
+			svec_show_bootloader_active, 
+			svec_store_bootloader_active);
 
 static struct attribute *svec_attrs[] = {
-	&dev_attr_unlock_bootloader.attr,
+	&dev_attr_bootloader_active.attr,
 	NULL,
 };
 

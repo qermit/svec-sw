@@ -19,12 +19,6 @@
 #define SVEC_MAX_DEVICES        32
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
 
-struct svec_dev;
-
-struct svec_card_ops {
-	int (*bootloader_unlock) (struct svec_dev *card);
-	int (*bootloader_check) (struct svec_dev *card);
-};
 
 /* Our device structure */
 struct svec_dev {
@@ -42,7 +36,6 @@ struct svec_dev {
 	char			description[80];
 
 	struct vme_mapping 	*cs_csr;
-	struct svec_card_ops	ops;
 
 	/* struct work_struct	work; */
 	const struct firmware	*fw;
@@ -54,6 +47,9 @@ struct svec_dev {
 	struct completion	compl;
 	struct gpio_chip	*gpio;
 };
+
+int svec_bootloader_check(struct svec_dev *svec);
+int svec_bootloader_unlock (struct svec_dev *svec);
 
 /* Functions and data in svec-vme.c */
 extern int svec_load_fpga(struct svec_dev *svec, const void *data, int size);
@@ -82,8 +78,7 @@ extern int svec_gpio_init(struct fmc_device *fmc);
 extern void svec_gpio_exit(struct fmc_device *fmc);
 
 /* Functions in svec-sysfs.c */
-int svec_create_sysfs_files (struct svec_dev *card);
-void svec_remove_sysfs_files (struct svec_dev *card);
-
+extern int svec_create_sysfs_files (struct svec_dev *card);
+extern void svec_remove_sysfs_files (struct svec_dev *card);
 
 #endif /* __SVEC_H__ */
