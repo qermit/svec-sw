@@ -48,12 +48,11 @@ struct svec_dev {
 	struct gpio_chip	*gpio;
 };
 
-int svec_bootloader_check(struct svec_dev *svec);
-int svec_bootloader_unlock (struct svec_dev *svec);
-
 /* Functions and data in svec-vme.c */
+extern int svec_bootloader_is_active(struct svec_dev *svec);
+extern int svec_bootloader_unlock (struct svec_dev *svec);
 extern int svec_load_fpga(struct svec_dev *svec, const void *data, int size);
-extern int svec_load_fpga_file(struct svec_dev *svec, char *name);
+extern int svec_load_fpga_file(struct svec_dev *svec, const char *name);
 extern char *svec_fw_name;
 extern int spec_use_msi;
 

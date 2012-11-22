@@ -152,7 +152,7 @@ int svec_bootloader_unlock (struct svec_dev *svec)
 	return 0;
 }
 
-int svec_bootloader_check(struct svec_dev *svec)
+int svec_bootloader_is_active(struct svec_dev *svec)
 {
 	uint32_t idc;
 	char *buf = (char *)&idc;
@@ -169,13 +169,15 @@ int svec_bootloader_check(struct svec_dev *svec)
 	idc = swapbe32(ioread32(addr));
 	idc = htonl(idc);
     
-	printk(KERN_INFO PFX "IDCode value %x.\n", idc);
 
 	if(strncmp(buf, "SVEC", 4) == 0)
 	{
+		printk(KERN_INFO PFX "IDCode value %x [%s].\n", idc, buf);
 		/* Bootloader active. Unlocked */ 
 		return 1;
 	}
+	else
+		printk(KERN_INFO PFX "IDCode value %x.\n", idc);
 	
 	/* Bootloader not active. Locked */
 	return 0;
@@ -184,12 +186,8 @@ int svec_bootloader_check(struct svec_dev *svec)
 int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 {
 
-	const uint32_t boot_seq[8] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
 	const uint32_t *data = blob;
 	void *loader_addr; /* FPGA loader virtual address */
-	char id_string[5]; /* Null terminated string. Should be 'SVEC' */
-	const char svec_idr[4] = "SVEC";
-	uint32_t idc;
 	uint32_t n;
 	uint32_t rval;
 	int xldr_fifo_r0;  /* Bitstream data input control register */
@@ -208,31 +206,22 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 		printk(KERN_ERR PFX "CS/CSR window not found\n");
 		return -EINVAL;
 	}
-	loader_addr = svec->cs_csr->kernel_va + BASE_LOADER;
 
-	/* Magic sequence: unlock bootloader mode, disable application FPGA */
-
-	for (i=0; i<8; i++)
-		iowrite32(swapbe32(boot_seq[i]), loader_addr + XLDR_REG_BTRIGR);	
-
-	printk(KERN_ERR PFX "wrote unlock sequence at %x\n", 
-			(unsigned int)loader_addr + XLDR_REG_BTRIGR);	
-
-	/* Check if we are really talking to a SVEC */
-	/* Looking for 'SVEC' string */
-	idc = swapbe32(ioread32(loader_addr + XLDR_REG_IDR));
-	id_string[0] = (idc >> 24) & 0xff;
-	id_string[1] = (idc >> 16) & 0xff;
-	id_string[2] = (idc >> 8) & 0xff;
-	id_string[3] = (idc >> 0) & 0xff;
-	id_string[4] = 0;
-
-	if(strncmp(id_string, svec_idr, 4))
-	{
-	    printk(KERN_ERR PFX "Invalid IDCode value %x [%s].\n", idc, &id_string[0]);
-	    return -EINVAL;
+	/* Unlock (activate) bootloader */
+	if (svec_bootloader_unlock(svec)) {
+		printk(KERN_ERR PFX "Bootloader unlock failed\n");
+		return -EINVAL;
 	}
-	printk(KERN_INFO PFX "IDCode value %x [%s].\n", idc, &id_string[0]);
+
+	/* Check if bootloader is active */
+	if (!svec_bootloader_is_active(svec)) {
+		printk(KERN_ERR PFX "Bootloader locked after unlock!\n");
+		return -EINVAL;
+	}
+
+	/* FPGA loader virtual address */
+	loader_addr = svec->cs_csr->kernel_va + BASE_LOADER;
+	i = 0;
 
 	iowrite32(swapbe32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR); 
 	iowrite32(swapbe32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR); 
@@ -320,7 +309,7 @@ static int __devinit svec_match(struct device *pdev, unsigned int ndev)
 	return 1;
 }
 
-int svec_load_fpga_file(struct svec_dev *svec, char *name)
+int svec_load_fpga_file(struct svec_dev *svec, const char *name)
 {
 	struct device *dev = svec->dev;
 	const struct firmware *fw;
