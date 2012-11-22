@@ -35,7 +35,7 @@ struct svec_dev {
 	char 			driver[16];
 	char			description[80];
 
-	struct vme_mapping 	*cs_csr;
+	struct vme_mapping 	*cr_csr;
 
 	/* struct work_struct	work; */
 	const struct firmware	*fw;
