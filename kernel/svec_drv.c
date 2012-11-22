@@ -233,7 +233,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	    printk(KERN_ERR PFX "Invalid IDCode value %d [%s].\n", idc, &id_string[0]);
 	    return -EINVAL;
 	}
-	printk(KERN_INFO PFX "IDCode value %d [%s].\n", idc, &id_string[0]);
+	printk(KERN_INFO PFX "IDCode value 0x%08x [%s].\n", idc, &id_string[0]);
 
 	iowrite32(swapbe32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR); 
 	iowrite32(swapbe32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR); 
