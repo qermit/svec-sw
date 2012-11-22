@@ -335,8 +335,6 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 		printk(KERN_ERR PFX "card is null!\n");
 	*/
 	
-	class_destroy(svec_class);
-	printk(KERN_ERR PFX "class_destroy\n");
 	unmap_cr_csr(card);
 
 	return 0;
@@ -535,6 +533,8 @@ static void __exit svec_exit(void)
 {
 	pr_debug("%s\n", __func__);
 	vme_unregister_driver(&svec_driver);
+	class_destroy(svec_class);
+	pr_debug(PFX "class_destroy\n");
 }
 
 
