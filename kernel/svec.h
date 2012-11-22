@@ -11,11 +11,14 @@
 #ifndef __SVEC_H__
 #define __SVEC_H__
 
+#include <linux/cdev.h>
 #include <linux/firmware.h>
 #include <linux/fmc.h>
+#include <vmebus.h>
 
 #define SVEC_MAX_DEVICES        32
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
+
 
 /* Our device structure */
 struct svec_dev {
@@ -32,6 +35,8 @@ struct svec_dev {
 	char 			driver[16];
 	char			description[80];
 
+	struct vme_mapping 	*cs_csr;
+
 	/* struct work_struct	work; */
 	const struct firmware	*fw;
 	struct list_head	list;
@@ -44,8 +49,10 @@ struct svec_dev {
 };
 
 /* Functions and data in svec-vme.c */
+extern int svec_bootloader_is_active(struct svec_dev *svec);
+extern int svec_bootloader_unlock (struct svec_dev *svec);
 extern int svec_load_fpga(struct svec_dev *svec, const void *data, int size);
-extern int svec_load_fpga_file(struct svec_dev *svec, char *name);
+extern int svec_load_fpga_file(struct svec_dev *svec, const char *name);
 extern char *svec_fw_name;
 extern int spec_use_msi;
 
@@ -69,5 +76,8 @@ extern int svec_eeprom_write(struct fmc_device *fmc, int i2c_addr,
 extern int svec_gpio_init(struct fmc_device *fmc);
 extern void svec_gpio_exit(struct fmc_device *fmc);
 
+/* Functions in svec-sysfs.c */
+extern int svec_create_sysfs_files (struct svec_dev *card);
+extern void svec_remove_sysfs_files (struct svec_dev *card);
 
 #endif /* __SVEC_H__ */

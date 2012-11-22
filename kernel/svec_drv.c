@@ -8,12 +8,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/cdev.h>
 #include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/delay.h>
-#include <vmebus.h>
 #include "svec.h"
 #include "xloader_regs.h"
 
@@ -57,7 +55,6 @@ MODULE_PARM_DESC(lun, "Index value for SVEC card");
 
 /* For device creation. Not really sure if it's necessary... */
 static dev_t svec_devno;
-static struct vme_mapping *cs_csr = NULL;
 static struct class *svec_class;
 
 static const struct file_operations svec_fops = {
@@ -79,44 +76,44 @@ int map_cs_csr(struct svec_dev *svec)
 {
 	int rval;
 
-	if (cs_csr != NULL) {
+	if (svec->cs_csr != NULL) {
 		printk(KERN_ERR PFX "Error: CS/CSR already mapped?\n");
 		return -EPERM;
 	}
-	cs_csr = kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
-	if (!cs_csr) {
+	svec->cs_csr = kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
+	if (!svec->cs_csr) {
 		printk(KERN_ERR PFX "kzalloc failed allocating memory for vme_mapping struct\n");
 		return -ENOMEM;
 	}
 
 	/* CS/CSR mapping*/
-	cs_csr->am = 		VME_CR_CSR; /* 0x2f */
-	cs_csr->data_width = 	VME_D32;
-	cs_csr->vme_addru =	0;
-	cs_csr->vme_addrl =	svec->vmebase1;
-	cs_csr->sizeu =		0;
-	cs_csr->sizel = 	0x80000;
-	cs_csr->window_num =	0;
-	cs_csr->bcast_select = 0;
-	cs_csr->read_prefetch_enabled = 0;
+	svec->cs_csr->am = 		VME_CR_CSR; /* 0x2f */
+	svec->cs_csr->data_width = 	VME_D32;
+	svec->cs_csr->vme_addru =	0;
+	svec->cs_csr->vme_addrl =	svec->vmebase1;
+	svec->cs_csr->sizeu =		0;
+	svec->cs_csr->sizel = 	0x80000;
+	svec->cs_csr->window_num =	0;
+	svec->cs_csr->bcast_select = 0;
+	svec->cs_csr->read_prefetch_enabled = 0;
 
 	printk(KERN_ERR PFX "Mapping CR/CSR space\n");
-	if (( rval = vme_find_mapping(cs_csr, 1)) != 0) {
+	if (( rval = vme_find_mapping(svec->cs_csr, 1)) != 0) {
         	 printk(KERN_ERR PFX "Failed to map CS_CSR (%d)\n", rval);
 	         return -EINVAL;
 	}
-	printk(KERN_ERR PFX "CR/CSR mapping successful at 0x%p\n", cs_csr->kernel_va);
+	printk(KERN_ERR PFX "CR/CSR mapping successful at 0x%p\n", svec->cs_csr->kernel_va);
 
 	return 0;
 }
 
-int unmap_cs_csr(void) {
+int unmap_cs_csr(struct svec_dev *svec) {
 
-	if (vme_release_mapping(cs_csr, 1)) {
+	if (vme_release_mapping(svec->cs_csr, 1)) {
 		printk(KERN_ERR PFX "Unmap CR/CSR window failed\n");
 		return -EINVAL;
 	}
-	printk(KERN_ERR PFX "CR/CSR window unmape\n");
+	printk(KERN_ERR PFX "CR/CSR window unmaped\n");
 	return 0;
 }
 
@@ -129,29 +126,68 @@ int unmap_cs_csr(void) {
 
 int setup_csr_fa0 (void)
 {
+	return 0;
+}
+
+int svec_bootloader_unlock (struct svec_dev *svec)
+{
+	const uint32_t boot_seq[8] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
+	void *addr;
+	int i;
+
 	/* Check if CS/CSR window is mapped */
-	if (cs_csr == NULL) {
+	if (svec->cs_csr == NULL) {
 		printk(KERN_ERR PFX "CS/CSR window not found\n");
 		return -EINVAL;
 	}
 
-	iowrite8(RESET_CORE, cs_csr->kernel_va + BIT_SETRG);
-	/*
-	iowrite8(ENABLE, cs_cst->kernel_va + BIT_CLEARRG);
-	iowrite
-	*/
+	addr = svec->cs_csr->kernel_va + BASE_LOADER + XLDR_REG_BTRIGR;
+
+	/* Magic sequence: unlock bootloader mode, disable application FPGA */
+	for (i=0; i<8; i++)
+		iowrite32(swapbe32(boot_seq[i]), addr);
+
+	printk(KERN_ERR PFX "wrote unlock sequence at %x\n", (unsigned int)addr);
+
+	return 0;
+}
+
+int svec_bootloader_is_active(struct svec_dev *svec)
+{
+	uint32_t idc;
+	char *buf = (char *)&idc;
+	void *addr;
+
+	/* Check if CS/CSR window is mapped */
+	if (svec->cs_csr == NULL) {
+		printk(KERN_ERR PFX "CS/CSR window not found\n");
+		return -EINVAL;
+	}
+
+	addr = svec->cs_csr->kernel_va + BASE_LOADER + XLDR_REG_IDR;
+
+	idc = swapbe32(ioread32(addr));
+	idc = htonl(idc);
+    
+
+	if(strncmp(buf, "SVEC", 4) == 0)
+	{
+		printk(KERN_INFO PFX "IDCode value %x [%s].\n", idc, buf);
+		/* Bootloader active. Unlocked */ 
+		return 1;
+	}
+	else
+		printk(KERN_INFO PFX "IDCode value %x.\n", idc);
+	
+	/* Bootloader not active. Locked */
 	return 0;
 }
 
 int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 {
 
-	const uint32_t boot_seq[8] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
 	const uint32_t *data = blob;
-	const char svec_idr[4] = "SVEC";
 	void *loader_addr; /* FPGA loader virtual address */
-	uint32_t idc;
-    	char id_string[5]; /* Null terminated string. Should be 'SVEC' */
 	uint32_t n;
 	uint32_t rval;
 	int xldr_fifo_r0;  /* Bitstream data input control register */
@@ -166,33 +202,26 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	}
 
 	/* Check if CS/CSR window is mapped */
-	if (cs_csr == NULL) {
+	if (svec->cs_csr == NULL) {
 		printk(KERN_ERR PFX "CS/CSR window not found\n");
 		return -EINVAL;
 	}
-	loader_addr = cs_csr->kernel_va + BASE_LOADER;
 
-	/* Magic sequence: unlock bootloader mode, disable application FPGA */
-	for (i=0; i<8; i++)
-		iowrite32(swapbe32(boot_seq[i]), loader_addr + XLDR_REG_BTRIGR);	
-	printk(KERN_ERR PFX "wrote unlock sequence at %x\n", 
-			(unsigned int)loader_addr + XLDR_REG_BTRIGR);
-
-	/* Check if we are really talking to a SVEC */
-	/* Looking for 'SVEC' string */
-	idc = swapbe32(ioread32(loader_addr + XLDR_REG_IDR));
-	id_string[0] = (idc >> 24) & 0xff;
-	id_string[1] = (idc >> 16) & 0xff;
-	id_string[2] = (idc >> 8) & 0xff;
-	id_string[3] = (idc >> 0) & 0xff;
-	id_string[4] = 0;
-    
-	if(strncmp(id_string, svec_idr, 4))
-	{
-	    printk(KERN_ERR PFX "Invalid IDCode value %d [%s].\n", idc, &id_string[0]);
-	    return -EINVAL;
+	/* Unlock (activate) bootloader */
+	if (svec_bootloader_unlock(svec)) {
+		printk(KERN_ERR PFX "Bootloader unlock failed\n");
+		return -EINVAL;
 	}
-	printk(KERN_INFO PFX "IDCode value %d [%s].\n", idc, &id_string[0]);
+
+	/* Check if bootloader is active */
+	if (!svec_bootloader_is_active(svec)) {
+		printk(KERN_ERR PFX "Bootloader locked after unlock!\n");
+		return -EINVAL;
+	}
+
+	/* FPGA loader virtual address */
+	loader_addr = svec->cs_csr->kernel_va + BASE_LOADER;
+	i = 0;
 
 	iowrite32(swapbe32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR); 
 	iowrite32(swapbe32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR); 
@@ -229,9 +258,11 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 
 static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 {
+	struct svec_dev *card = dev_get_drvdata(pdev); 
+	
 	printk(KERN_ERR PFX "%s\n", __func__);
 	
-	/* struct svec_dev *card = dev_get_drvdata(pdev); 
+	/*
 	int ret;
 	dev_t devno = MKDEV(MAJOR(svec_devno), 0);
 
@@ -249,10 +280,11 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 	}
 	else
 		printk(KERN_ERR PFX "card is null!\n");
-	printk(KERN_ERR PFX "class_destroy\n");
-	class_destroy(svec_class);
 	*/
 	
+	class_destroy(svec_class);
+	printk(KERN_ERR PFX "class_destroy\n");
+	unmap_cs_csr(card);
 
 	return 0;
 }
@@ -277,7 +309,7 @@ static int __devinit svec_match(struct device *pdev, unsigned int ndev)
 	return 1;
 }
 
-int svec_load_fpga_file(struct svec_dev *svec, char *name)
+int svec_load_fpga_file(struct svec_dev *svec, const char *name)
 {
 	struct device *dev = svec->dev;
 	const struct firmware *fw;
@@ -333,6 +365,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->level = level[ndev];
 	svec->fw_name = fw_name[ndev];
 	svec->dev = pdev;
+	svec->cs_csr = NULL;
 
 	/* Map CS/CSR space */
 	error = map_cs_csr(svec);
@@ -383,12 +416,11 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		goto device_create_failed;
 	}
 */
+
 	if (!error) {
 		dev_set_drvdata(svec->dev, svec);
 		goto out;
 	}
-	
-	unmap_cs_csr();
 
 /*
 device_create_failed:
@@ -399,6 +431,10 @@ failed:
 	kfree(svec);
 	return -EINVAL;
 out:
+	error = svec_create_sysfs_files(svec);
+	if (error)
+		printk(KERN_ERR PFX "Error creating sysfs files\n");
+
 	return error;
 }
 
@@ -423,15 +459,14 @@ static int __init svec_init(void)
 		printk(KERN_ERR PFX "Failed to allocate chrdev region\n");
 		goto out;
 	}
-
-	/*	
+		
 	svec_class = class_create(THIS_MODULE, "svec");
 	if (IS_ERR(svec_class)) {
 		printk(KERN_ERR PFX "Failed to create svec class\n");
 		error = PTR_ERR(svec_class);
 		goto out;
 	}
-        */
+        
 	error = vme_register_driver(&svec_driver, lun_num);
 	if (error) {
 		printk(KERN_ERR PFX "Cannot register vme driver - lun [%d]\n", lun_num);
