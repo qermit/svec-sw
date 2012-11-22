@@ -260,6 +260,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 				(err < 0 ? "ERROR" : "OK"));
 
 			/* give the VME bus control to App FPGA */
+			pr_debug("giving up control to app FPGA\n");
 			iowrite32(swapbe32(XLDR_CSR_EXIT), loader_addr + XLDR_REG_CSR);
 			break;
 		}
@@ -486,8 +487,8 @@ out:
 
 static void __exit svec_exit(void)
 {
-	printk(KERN_ERR PFX "%s\n", __func__);
-        vme_unregister_driver(&svec_driver);
+	pr_debug("%s\n", __func__);
+	vme_unregister_driver(&svec_driver);
 }
 
 
