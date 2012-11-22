@@ -117,17 +117,17 @@ int unmap_cs_csr(struct svec_dev *svec) {
 	return 0;
 }
 
-#define BIT_SETRG (0x7FFFB)
-#define BIT_CLEARRG (0x7FFF7)
-#define WB64 0
-#define WB32 1
-#define RESET_CORE 0x80
-#define ENABLE 0x10
 
-int setup_csr_fa0 (void)
-{
-	return 0;
-}
+#define FUN0ADER  (0x7FF63)
+#define INT_LEVEL (0x7ff5b)
+#define INTVECTOR (0x7ff5f)
+#define WB_32_64 (0x7ff33)
+#define BIT_SET_REG (0x7FFFB)
+#define BIT_CLR_REG (0x7FFF7)
+#define WB32 1
+#define WB64 0
+#define RESET_CORE 0x80
+#define ENABLE_CORE 0x10
 
 int svec_bootloader_unlock (struct svec_dev *svec)
 {
@@ -183,6 +183,58 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 	return 0;
 }
 
+static u8 csr_read(void *base, u32 offset)
+{
+	char *p = base;
+	u8 value;
+
+	value = ioread8(p + offset);
+	pr_debug("read: 0x%08x -> 0x%02x\n", (u32)(p+offset), value);
+	return value;
+}
+
+static void csr_write(u8 value, void *base, u32 offset)
+{
+	char *p = base;
+
+	pr_debug("write: 0x%08x <- 0x%02x\n", (u32)(p+offset), value);
+	iowrite8(value, p + offset);
+}
+
+void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
+{
+	u8 fa[4];		/* FUN0 ADER contents */
+
+	/* reset the core */
+	csr_write(RESET_CORE, base, BIT_SET_REG);
+	msleep(10);
+
+	/* disable the core */
+	csr_write(ENABLE_CORE, base, BIT_CLR_REG);
+
+	/* default to 32bit WB interface */
+	csr_write(WB32, base, WB_32_64);
+
+	/* set interrupt vector and level */
+	csr_write(vector, base, INTVECTOR);
+	csr_write(level, base, INT_LEVEL);
+
+	/* do address relocation for FUN0 */
+	fa[0] = (vme >> 24) & 0xFF;
+	fa[1] = (vme >> 16) & 0xFF;
+	fa[2] = (vme >> 8 ) & 0xFF;
+	fa[3] = (VME_A32_USER_DATA_SCT & 0x3F) << 2;
+			/* DFSR and XAM are zero */
+
+	csr_write(fa[0], base, FUN0ADER);
+	csr_write(fa[1], base, FUN0ADER + 4);
+	csr_write(fa[2], base, FUN0ADER + 8);
+	csr_write(fa[3], base, FUN0ADER + 12);
+
+	/* enable module, hence make FUN0 available */
+	csr_write(ENABLE_CORE, base, BIT_SET_REG);
+}
+
 int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 {
 
@@ -221,11 +273,11 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 
 	/* FPGA loader virtual address */
 	loader_addr = svec->cs_csr->kernel_va + BASE_LOADER;
-	i = 0;
 
 	iowrite32(swapbe32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR); 
 	iowrite32(swapbe32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR); 
 
+	i = 0;
 	while(i < size) {
 		rval = swapbe32(ioread32(loader_addr + XLDR_REG_FIFO_CSR));
 		if (!(rval & XLDR_FIFO_CSR_FULL)) {
@@ -248,6 +300,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 				(err < 0 ? "ERROR" : "OK"));
 
 			/* give the VME bus control to App FPGA */
+			pr_debug("giving up control to app FPGA\n");
 			iowrite32(swapbe32(XLDR_CSR_EXIT), loader_addr + XLDR_REG_CSR);
 			break;
 		}
@@ -377,8 +430,9 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	if (error)
 		goto failed;
 
-	error = setup_csr_fa0();
-
+	/* configure and activate function 0 */
+	setup_csr_fa0(svec->cs_csr->kernel_va, vmebase2[ndev],
+				vector[ndev], level[ndev]);
 	
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 	name = pdev->bus_id;
@@ -479,8 +533,8 @@ out:
 
 static void __exit svec_exit(void)
 {
-	printk(KERN_ERR PFX "%s\n", __func__);
-        vme_unregister_driver(&svec_driver);
+	pr_debug("%s\n", __func__);
+	vme_unregister_driver(&svec_driver);
 }
 
 

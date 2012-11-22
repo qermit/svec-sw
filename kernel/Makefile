@@ -5,7 +5,14 @@ VME_DIR := "../../repo/vmebridge/driver"
 #VME_OBJDIR := "../../repo/vmebridge/driver/$(CPU)/$(KVER)"
 VME_OBJDIR := "../../repo/vmebridge/driver/"
 
+ccflags-y += -I $(M)/../include
+ccflags-y += -I $(M)/fmc-bus/kernel/include
 ccflags-y += -DDEBUG
+
+KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.vme
+
+obj-m := svec.o
+svec-objs := svec_drv.o svec-sysfs.o
 
 all: modules
 	$(MAKE) -C $(KERN_DIR) M=$(shell /bin/pwd)
