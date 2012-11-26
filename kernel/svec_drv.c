@@ -188,17 +188,15 @@ static u8 csr_read(void *base, u32 offset)
 	char *p = base;
 	u8 value;
 
-	value = ioread8(p + offset);
-	pr_debug("read: 0x%08x -> 0x%02x\n", (u32)(p+offset), value);
+	offset -= offset % 4;
+	value = ioread32be(p + offset);
 	return value;
 }
 
 static void csr_write(u8 value, void *base, u32 offset)
 {
-	char *p = base;
-
-	pr_debug("write: 0x%08x <- 0x%02x\n", (u32)(p+offset), value);
-	iowrite8(value, p + offset);
+	offset -= offset % 4;
+	iowrite32be(value, base + offset);
 }
 
 void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
@@ -233,6 +231,15 @@ void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
 
 	/* enable module, hence make FUN0 available */
 	csr_write(ENABLE_CORE, base, BIT_SET_REG);
+
+	pr_debug("base: %02x%02x%02x%02x\n", csr_read(base, FUN0ADER),
+		csr_read(base, FUN0ADER+4), csr_read(base, FUN0ADER+8),
+		csr_read(base, FUN0ADER+12));
+	pr_debug("vector: %02x\n", csr_read(base, INTVECTOR));
+	pr_debug("level: %02x\n", csr_read(base, INT_LEVEL));
+	pr_debug("int_enable: %02x\n", csr_read(base, 0x7ff57));
+	pr_debug("wb32: %02x\n", csr_read(base, WB_32_64));
+	pr_debug("vme_core: %02x\n", csr_read(base, 0x7c));
 }
 
 int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
