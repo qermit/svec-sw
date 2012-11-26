@@ -40,9 +40,9 @@ static int lun[SVEC_MAX_DEVICES] = SVEC_DEFAULT_IDX;
 static unsigned int lun_num;
 
 
-module_param_array(vmebase1, long, &vmebase1_num, S_IRUGO);
+module_param_array(vmebase1, ulong, &vmebase1_num, S_IRUGO);
 MODULE_PARM_DESC(vmebase1, "VME Base Adress #1 of the SVEC card");
-module_param_array(vmebase2, long, &vmebase2_num, S_IRUGO);
+module_param_array(vmebase2, ulong, &vmebase2_num, S_IRUGO);
 MODULE_PARM_DESC(vmebase2, "VME Base Adress #2 of the SVEC card");
 module_param_array_named(fw_name, fw_name , charp, &fw_name_num, S_IRUGO);
 MODULE_PARM_DESC(fw_name, "firmware file");
@@ -178,7 +178,7 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 	}
 	else
 		printk(KERN_INFO PFX "IDCode value %x.\n", idc);
-	
+
 	/* Bootloader not active. Locked */
 	return 0;
 }
@@ -423,15 +423,6 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	if (error)
 		goto failed;
 
-	/* Load the golden FPGA binary to read the eeprom */
-	error = svec_load_fpga_file(svec, svec->fw_name);
-	if (error)
-		goto failed;
-
-	/* configure and activate function 0 */
-	setup_csr_fa0(svec->cr_csr->kernel_va, vmebase2[ndev],
-				vector[ndev], level[ndev]);
-	
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 	name = pdev->bus_id;
 #else
@@ -469,11 +460,23 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	}
 */
 
-	if (!error) {
-		dev_set_drvdata(svec->dev, svec);
-		goto out;
+	dev_set_drvdata(svec->dev, svec);
+	error = svec_create_sysfs_files(svec);
+	if (error) {
+		printk(KERN_ERR PFX "Error creating sysfs files\n");
+		goto failed;
 	}
 
+	/* Load the golden FPGA binary to read the eeprom */
+	error = svec_load_fpga_file(svec, svec->fw_name);
+	if (error)
+		goto failed;
+
+	/* configure and activate function 0 */
+	setup_csr_fa0(svec->cr_csr->kernel_va, vmebase2[ndev],
+				vector[ndev], level[ndev]);
+	
+	return 0;
 /*
 device_create_failed:
 	cdev_del(&svec->cdev);
@@ -483,9 +486,6 @@ failed:
 	kfree(svec);
 	return -EINVAL;
 out:
-	error = svec_create_sysfs_files(svec);
-	if (error)
-		printk(KERN_ERR PFX "Error creating sysfs files\n");
 
 	return error;
 }

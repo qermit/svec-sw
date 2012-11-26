@@ -70,6 +70,7 @@ static ssize_t svec_store_firmware_name(struct device *pdev,
 
 	struct svec_dev *card = dev_get_drvdata(pdev);
 
+	pr_debug("storing firmware name [%s] length %d\n", buf, count);
 	error = svec_load_fpga_file(card, buf);
 
 	if (!error)
