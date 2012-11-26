@@ -485,9 +485,6 @@ device_create_failed:
 failed:
 	kfree(svec);
 	return -EINVAL;
-out:
-
-	return error;
 }
 
 static struct vme_driver svec_driver = {
