@@ -538,6 +538,7 @@ static void __exit svec_exit(void)
 	pr_debug("%s\n", __func__);
 	vme_unregister_driver(&svec_driver);
 	class_destroy(svec_class);
+	unregister_chrdev_region(svec_devno, lun_num);
 	pr_debug(PFX "class_destroy\n");
 }
 
