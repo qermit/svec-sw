@@ -12,6 +12,8 @@ if ! (echo $ADDRESS | grep -qi '^0x[0-9a-f]\{8\}' ) ; then
 	exit 1
 fi
 
+CR_CSR_BASE=0x600000
+
 BYTE1=`echo $ADDRESS | sed 's!\(0x\)\?\([0-9a-fA-F][0-9a-fA-F]\)......!\2!'`
 BYTE2=`echo $ADDRESS | sed 's!\(0x\)\?..\([0-9a-fA-F][0-9a-fA-F]\)....!\2!'`
 BYTE3=`echo $ADDRESS | sed 's!\(0x\)\?....\([0-9a-fA-F][0-9a-fA-F]\)..!\2!'`
