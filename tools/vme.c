@@ -7,8 +7,9 @@
 #include <libvmebus.h>
 
 static char usage_string[] =
-	"usage: %s [-oh?] [ -w word ] [-v vme_address] "
-	"[-d data_width] [-a address_modifier] [-n word_count]\n";
+	"usage: %s [-oh?] [ -w word ] [-v vme_address]\n"
+	"[-s skip_bytes ] [-d data_width] "
+	"[-a address_modifier] [-n word_count]\n";
 
 void usage(char *prog)
 {
@@ -22,6 +23,7 @@ int main(int argc, char *argv[])
 	struct vme_mapping *mapp = &map;
 	volatile void *ptr;
 	unsigned int vmebase, am, data_width;
+	unsigned int skip_bytes;
 	int i, count;
 	int c;
 	int write, offsets_on;
@@ -34,10 +36,14 @@ int main(int argc, char *argv[])
 
 	write = 0;
 	offsets_on = 1;
-	while ((c = getopt(argc, argv, "ov:d:a:n:w:")) != -1) {
+	skip_bytes = 0;
+	while ((c = getopt(argc, argv, "ov:s:d:a:n:w:")) != -1) {
 		switch (c) {
 		case 'o':
 			offsets_on = 0;
+			break;
+		case 's':
+			skip_bytes = strtoul(optarg, NULL, 0);
 			break;
 		case 'v':
 			vmebase = strtoul(optarg, NULL, 0);
@@ -78,6 +84,7 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "vme 0x%08x kernel 0x%p user 0x%p\n",
 			vmebase, mapp->kernel_va, mapp->user_va);
+	ptr += skip_bytes;
 	for (i = 0; i < count; i++, ptr += 4) {
 		if (!write) {
 			if (offsets_on)
