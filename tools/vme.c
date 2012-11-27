@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	printf("vme 0x%08x kernel 0x%08x user 0x%08x\n", 
+	fprintf(stderr, "vme 0x%08x kernel 0x%08x user 0x%08x\n",
 			vmebase, mapp->kernel_va, mapp->user_va);
 	for (i = 0; i < count; i++, ptr += 4) {
 		if (!write) {
