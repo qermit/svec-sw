@@ -1,0 +1,22 @@
+#!	/bin/sh
+
+if [ x"$#" = x"1" ] ; then
+	ADDRESS=$1
+else
+	echo "usage: $0 address"
+	exit 1
+fi
+
+if ! (echo $ADDRESS | grep -qi '^0x[0-9a-f]\{8\}' ) ; then
+	echo "address must be of the form 0xhhhhhhhh, h = hex digit"
+	exit 1
+fi
+
+BYTE1=`echo $ADDRESS | sed 's!\(0x\)\?\([0-9a-fA-F][0-9a-fA-F]\)......!\2!'`
+BYTE2=`echo $ADDRESS | sed 's!\(0x\)\?..\([0-9a-fA-F][0-9a-fA-F]\)....!\2!'`
+BYTE3=`echo $ADDRESS | sed 's!\(0x\)\?....\([0-9a-fA-F][0-9a-fA-F]\)..!\2!'`
+BYTE4=`echo $ADDRESS | sed 's!\(0x\)\?......\([0-9a-fA-F][0-9a-fA-F]\)!\2!'`
+
+echo ./vme -v CR_CSR_BASE -a 0x2f -s 0x7ff60 -n 0x1 -w $BYTE1
+echo ./vme -v CR_CSR_BASE -a 0x2f -s 0x7ff64 -n 0x1 -w $BYTE2
+echo ./vme -v CR_CSR_BASE -a 0x2f -s 0x7ff68 -n 0x1 -w $BYTE3
