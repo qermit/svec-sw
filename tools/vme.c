@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
 	mapp->sizel = 		0x80000;
 	mapp->vme_addrl =	vmebase;
 
-	if ((ptr = vme_map(mapp, 1)) == (void *)-1) {
+	if ((ptr = vme_map(mapp, 1)) == NULL) {
 		printf("could not map at 0x%08x\n", vmebase);
 		exit(1);
 	}
