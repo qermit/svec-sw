@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 	struct vme_mapping map;
 	struct vme_mapping *mapp = &map;
 	volatile void *ptr;
-	unsigned long vmebase, am, data_width;
+	unsigned int vmebase, am, data_width;
 	int i, count;
 	int c;
 	int write, offsets_on;
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 			data_width = strtoul(optarg, NULL, 0);
 			break;
 		case 'a':
-			am = VME_A32_USER_DATA_SCT;
+			am = strtoul(optarg, NULL, 0);
 			break;
 		case 'n':
 			count = strtoul(optarg, NULL, 0);
@@ -66,8 +66,8 @@ int main(int argc, char *argv[])
 
 	memset(mapp, 0, sizeof(*mapp));
 
-	mapp->am = 		VME_A32_USER_DATA_SCT;
-	mapp->data_width = 	VME_D32;
+	mapp->am = 		am;
+	mapp->data_width = 	data_width;
 	mapp->sizel = 		0x80000;
 	mapp->vme_addrl =	vmebase;
 
@@ -76,12 +76,12 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	fprintf(stderr, "vme 0x%08x kernel 0x%08x user 0x%08x\n",
+	fprintf(stderr, "vme 0x%08x kernel 0x%p user 0x%p\n",
 			vmebase, mapp->kernel_va, mapp->user_va);
 	for (i = 0; i < count; i++, ptr += 4) {
 		if (!write) {
 			if (offsets_on)
-				printf("%08x: ", ptr);
+				printf("%p: ", ptr);
 			printf("%08x\n", ntohl(*(uint32_t *)ptr));
 		} else {
 			*(uint32_t *)ptr = htonl(word);
