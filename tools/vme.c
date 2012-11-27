@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 	struct vme_mapping *mapp = &map;
 	volatile void *ptr;
 	unsigned int vmebase, am, data_width;
-	unsigned int skip_bytes;
+	unsigned int offset, skip_bytes;
 	int i, count;
 	int c;
 	int write, offsets_on;
@@ -84,15 +84,15 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "vme 0x%08x kernel 0x%p user 0x%p\n",
 			vmebase, mapp->kernel_va, mapp->user_va);
-	ptr += skip_bytes;
-	for (i = 0; i < count; i++, ptr += 4) {
+	offset = skip_bytes;
+	for (i = 0; i < count; i++, offset += 4) {
+		volatile uint32_t *addr = ptr + offset;
 		if (!write) {
 			if (offsets_on)
-				printf("%p: ", ptr);
-			printf("%08x\n", ntohl(*(uint32_t *)ptr));
-		} else {
-			*(uint32_t *)ptr = htonl(word);
-		}
+				printf("%08x: ", vmebase + offset);
+			printf("%08x\n", ntohl(*addr));
+		} else
+			*addr = htonl(word);
 	}
 
 	vme_unmap(mapp, 1);
