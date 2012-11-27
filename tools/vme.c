@@ -7,7 +7,7 @@
 #include <libvmebus.h>
 
 static char usage_string[] =
-	"usage: %s [-v vme_address] "
+	"usage: %s [-oh?] [ -w word ] [-v vme_address] "
 	"[-d data_width] [-a address_modifier] [-n word_count]\n";
 
 void usage(char *prog)
@@ -24,14 +24,21 @@ int main(int argc, char *argv[])
 	unsigned long vmebase, am, data_width;
 	int i, count;
 	int c;
+	int write, offsets_on;
+	uint32_t word;
 
 	/* vme defaults */
 	count = 1;
 	am = VME_A32_USER_DATA_SCT;
 	data_width = VME_D32;
 
-	while ((c = getopt(argc, argv, "v:d:a:n:")) != -1) {
+	write = 0;
+	offsets_on = 1;
+	while ((c = getopt(argc, argv, "ov:d:a:n:w:")) != -1) {
 		switch (c) {
+		case 'o':
+			offsets_on = 0;
+			break;
 		case 'v':
 			vmebase = strtoul(optarg, NULL, 0);
 			break;
@@ -43,6 +50,10 @@ int main(int argc, char *argv[])
 			break;
 		case 'n':
 			count = strtoul(optarg, NULL, 0);
+			break;
+		case 'w':
+			write = 1;
+			word = strtoul(optarg, NULL, 0);
 			break;
 		case '?':
 		case 'h':
@@ -68,7 +79,13 @@ int main(int argc, char *argv[])
 	printf("vme 0x%08x kernel 0x%08x user 0x%08x\n", 
 			vmebase, mapp->kernel_va, mapp->user_va);
 	for (i = 0; i < count; i++, ptr += 4) {
-		printf("%08x: %08x\n", ptr, ntohl(*(uint32_t *)ptr));
+		if (!write) {
+			if (offsets_on)
+				printf("%08x: ", ptr);
+			printf("%08x\n", ntohl(*(uint32_t *)ptr));
+		} else {
+			*(uint32_t *)ptr = htonl(word);
+		}
 	}
 
 	vme_unmap(mapp, 1);
