@@ -1,7 +1,7 @@
 /**
 * svec_drv.c
 * Driver for SVEC carrier.
-* 
+*
 * Released under GPL v2. (and only v2, not any later version)
 */
 
@@ -72,48 +72,52 @@ static inline unsigned int swapbe32(unsigned int val)
                 ((val & 0xff00) << 8) | ((val & 0xff) << 24));
 }
 
-int map_cr_csr(struct svec_dev *svec)
+int map_window( struct svec_dev *svec,
+		enum svec_map_win win,
+		enum vme_address_modifier am,
+		enum vme_data_width dw,
+		unsigned long base,
+		unsigned int size)
 {
 	int rval;
 
-	if (svec->cr_csr != NULL) {
-		printk(KERN_ERR PFX "Error: CS/CSR already mapped?\n");
+	if (svec->map[win] != NULL) {
+		printk(KERN_ERR PFX "Error: window %d already mapped\n", (int)win);
 		return -EPERM;
 	}
-	svec->cr_csr = kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
-	if (!svec->cr_csr) {
+	svec->map[win] = kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
+	if (!svec->map[win]) {
 		printk(KERN_ERR PFX "kzalloc failed allocating memory for vme_mapping struct\n");
 		return -ENOMEM;
 	}
 
-	/* CS/CSR mapping*/
-	svec->cr_csr->am = 		VME_CR_CSR; /* 0x2f */
-	svec->cr_csr->data_width = 	VME_D32;
-	svec->cr_csr->vme_addru =	0;
-	svec->cr_csr->vme_addrl =	svec->vmebase1;
-	svec->cr_csr->sizeu =		0;
-	svec->cr_csr->sizel = 	0x80000;
-	svec->cr_csr->window_num =	0;
-	svec->cr_csr->bcast_select = 0;
-	svec->cr_csr->read_prefetch_enabled = 0;
+	/* Window mapping*/
+	svec->map[win]->am = 		am; /* 0x2f */
+	svec->map[win]->data_width = 	dw;
+	svec->map[win]->vme_addru =	0;
+	svec->map[win]->vme_addrl =	base;
+	svec->map[win]->sizeu =		0;
+	svec->map[win]->sizel =		size;
 
-	printk(KERN_ERR PFX "Mapping CR/CSR space\n");
-	if (( rval = vme_find_mapping(svec->cr_csr, 1)) != 0) {
-        	 printk(KERN_ERR PFX "Failed to map CS_CSR (%d)\n", rval);
-	         return -EINVAL;
+	if (( rval = vme_find_mapping(svec->map[win], 1)) != 0) {
+		printk(KERN_ERR PFX "Failed to map window %d: (%d)\n", (int)win, rval);
+	        return -EINVAL;
 	}
-	printk(KERN_ERR PFX "CR/CSR mapping successful at 0x%p\n", svec->cr_csr->kernel_va);
 
 	return 0;
 }
 
-int unmap_cr_csr(struct svec_dev *svec) {
-
-	if (vme_release_mapping(svec->cr_csr, 1)) {
-		printk(KERN_ERR PFX "Unmap CR/CSR window failed\n");
+int unmap_window(struct svec_dev *svec, enum svec_map_win win)
+{
+	if (svec->map[win] == NULL) {
+		printk(KERN_ERR PFX "window %d not mapped. Cannot unmap\n", (int)win);
 		return -EINVAL;
 	}
-	printk(KERN_ERR PFX "CR/CSR window unmaped\n");
+	if (vme_release_mapping(svec->map[win], 1)) {
+		printk(KERN_ERR PFX "Unmap for window %d failed\n", (int)win);
+		return -EINVAL;
+	}
+	printk(KERN_ERR PFX "window %d unmaped\n", (int)win);
 	return 0;
 }
 
@@ -136,12 +140,12 @@ int svec_bootloader_unlock (struct svec_dev *svec)
 	int i;
 
 	/* Check if CS/CSR window is mapped */
-	if (svec->cr_csr == NULL) {
+	if (svec->map[MAP_CR_CSR] == NULL) {
 		printk(KERN_ERR PFX "CS/CSR window not found\n");
 		return -EINVAL;
 	}
 
-	addr = svec->cr_csr->kernel_va + BASE_LOADER + XLDR_REG_BTRIGR;
+	addr = svec->map[MAP_CR_CSR]->kernel_va + BASE_LOADER + XLDR_REG_BTRIGR;
 
 	/* Magic sequence: unlock bootloader mode, disable application FPGA */
 	for (i=0; i<8; i++)
@@ -159,21 +163,21 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 	void *addr;
 
 	/* Check if CS/CSR window is mapped */
-	if (svec->cr_csr == NULL) {
+	if (svec->map[MAP_CR_CSR] == NULL) {
 		printk(KERN_ERR PFX "CS/CSR window not found\n");
 		return -EINVAL;
 	}
 
-	addr = svec->cr_csr->kernel_va + BASE_LOADER + XLDR_REG_IDR;
+	addr = svec->map[MAP_CR_CSR]->kernel_va + BASE_LOADER + XLDR_REG_IDR;
 
 	idc = swapbe32(ioread32(addr));
 	idc = htonl(idc);
-    
+
 
 	if(strncmp(buf, "SVEC", 4) == 0)
 	{
 		printk(KERN_INFO PFX "IDCode value %x [%s].\n", idc, buf);
-		/* Bootloader active. Unlocked */ 
+		/* Bootloader active. Unlocked */
 		return 1;
 	}
 	else
@@ -232,6 +236,7 @@ void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
 	/* enable module, hence make FUN0 available */
 	csr_write(ENABLE_CORE, base, BIT_SET_REG);
 
+	/* DEBUG */
 	pr_debug("base: %02x%02x%02x%02x\n", csr_read(base, FUN0ADER),
 		csr_read(base, FUN0ADER+4), csr_read(base, FUN0ADER+8),
 		csr_read(base, FUN0ADER+12));
@@ -261,7 +266,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	}
 
 	/* Check if CS/CSR window is mapped */
-	if (svec->cr_csr == NULL) {
+	if (svec->map[MAP_CR_CSR] == NULL) {
 		printk(KERN_ERR PFX "CS/CSR window not found\n");
 		return -EINVAL;
 	}
@@ -279,10 +284,10 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	}
 
 	/* FPGA loader virtual address */
-	loader_addr = svec->cr_csr->kernel_va + BASE_LOADER;
+	loader_addr = svec->map[MAP_CR_CSR]->kernel_va + BASE_LOADER;
 
-	iowrite32(swapbe32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR); 
-	iowrite32(swapbe32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR); 
+	iowrite32(swapbe32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR);
+	iowrite32(swapbe32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR);
 
 	i = 0;
 	while(i < size) {
@@ -290,7 +295,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 		if (!(rval & XLDR_FIFO_CSR_FULL)) {
 			n = (size-i>4?4:size-i);
 			xldr_fifo_r0 = (n - 1) | ((n<4) ? XLDR_FIFO_R0_XLAST : 0);
-			xldr_fifo_r1 = htonl(data[i>>2]); 
+			xldr_fifo_r1 = htonl(data[i>>2]);
 
 			iowrite32(swapbe32(xldr_fifo_r0), loader_addr + XLDR_REG_FIFO_R0);
 			iowrite32(swapbe32(xldr_fifo_r1), loader_addr + XLDR_REG_FIFO_R1);
@@ -298,12 +303,12 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 		}
 	}
 
-	while(1) 
+	while(1)
 	{
 		rval = swapbe32(ioread32(loader_addr + XLDR_REG_CSR));
 		if(rval & XLDR_CSR_DONE) {
 			err = rval & XLDR_CSR_ERROR ? -EINVAL : 0;
-    	    		printk(KERN_ERR PFX "Bitstream loaded, status: %s\n", 
+			printk(KERN_ERR PFX "Bitstream loaded, status: %s\n",
 				(err < 0 ? "ERROR" : "OK"));
 
 			/* give the VME bus control to App FPGA */
@@ -318,7 +323,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 
 static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 {
-	struct svec_dev *card = dev_get_drvdata(pdev); 
+	struct svec_dev *svec = dev_get_drvdata(pdev);
 	
 	printk(KERN_ERR PFX "%s\n", __func__);
 	
@@ -332,8 +337,8 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 	*/
 	/* avoid deleting unregistered devices */
 	/*
-	if (card) {
-		if (card->cdev.owner == THIS_MODULE) {
+	if (svec) {
+		if (svec->cdev.owner == THIS_MODULE) {
 			printk(KERN_ERR PFX "unregister_chrdev_region\n");
 			unregister_chrdev_region(devno, lun_num);
 		}
@@ -342,7 +347,10 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 		printk(KERN_ERR PFX "card is null!\n");
 	*/
 	
-	unmap_cr_csr(card);
+	unmap_window(svec, MAP_CR_CSR);
+	unmap_window(svec, MAP_REG);
+	if (svec->fmc != NULL)
+		svec_fmc_destroy(svec);
 
 	return 0;
 }
@@ -423,12 +431,19 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->level = level[ndev];
 	svec->fw_name = fw_name[ndev];
 	svec->dev = pdev;
-	svec->cr_csr = NULL;
+	svec->map[MAP_CR_CSR] = NULL;
+	svec->map[MAP_REG] = NULL;
+	svec->fmc = NULL;
 
-	/* Map CS/CSR space */
-	error = map_cr_csr(svec);
-	if (error)
+	/* Map CR/CSR space */
+	error = map_window(svec, MAP_CR_CSR, VME_CR_CSR,
+				VME_D32, svec->vmebase1, 0x80000);
+	if (error) {
+		printk(KERN_ERR PFX "error mapping CR/CSR space\n");
 		goto failed;
+	}
+	printk(KERN_ERR PFX "CR/CSR mapping successful at 0x%p\n",
+					svec->map[MAP_CR_CSR]->kernel_va);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 	name = pdev->bus_id;
@@ -457,7 +472,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
         svec->dev = device_create(svec_class, pdev, devno, NULL, "svec.%i", ndev);
 #else
         svec->dev = device_create(svec_class, pdev, devno, "svec.%i", ndev);
-#endif 
+#endif
 
 	if (IS_ERR(pdev)) {
 		error = PTR_ERR(svec->dev);
@@ -480,14 +495,31 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		goto failed;
 
 	/* configure and activate function 0 */
-	setup_csr_fa0(svec->cr_csr->kernel_va, vmebase2[ndev],
+	setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, vmebase2[ndev],
 				vector[ndev], level[ndev]);
-	
+
+	/* Map A32 space */
+	error = map_window(svec, MAP_REG, VME_A32_USER_DATA_SCT,
+				VME_D32, svec->vmebase2, 0x100000);
+	if (error) {
+		printk(KERN_ERR PFX "error mapping CR/CSR space\n");
+		goto failed;
+	}
+	printk(KERN_ERR PFX "A32 mapping successful at 0x%p\n",
+					svec->map[MAP_REG]->kernel_va);
+
+	/* fmc creation */
+	error = svec_fmc_create(svec);
+	if (error)
+		goto failed_unmap;
 	return 0;
 /*
 device_create_failed:
 	cdev_del(&svec->cdev);
  */
+failed_unmap:
+	unmap_window(svec, MAP_CR_CSR);
+	unmap_window(svec, MAP_REG);
 
 failed:
 	kfree(svec);
@@ -522,7 +554,7 @@ static int __init svec_init(void)
 		error = PTR_ERR(svec_class);
 		goto out;
 	}
-        
+
 	error = vme_register_driver(&svec_driver, lun_num);
 	if (error) {
 		printk(KERN_ERR PFX "Cannot register vme driver - lun [%d]\n", lun_num);

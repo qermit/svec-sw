@@ -19,6 +19,10 @@
 #define SVEC_MAX_DEVICES        32
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
 
+enum svec_map_win {
+	MAP_CR_CSR = 0,	/* CR/CSR */
+	MAP_REG		/* A32 space */
+};
 
 /* Our device structure */
 struct svec_dev {
@@ -35,7 +39,7 @@ struct svec_dev {
 	char 			driver[16];
 	char			description[80];
 
-	struct vme_mapping 	*cr_csr;
+	struct vme_mapping 	*map[2];
 
 	/* struct work_struct	work; */
 	const struct firmware	*fw;
