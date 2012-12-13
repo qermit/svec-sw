@@ -16,12 +16,12 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/fmc.h>
-#include "spec.h"
+#include "svec.h"
 #include "hw/wrc_syscon_regs.h"
 
 
-static int spec_i2c_dump;
-module_param_named(i2c_dump, spec_i2c_dump, int, 0444);
+static int svec_i2c_dump;
+module_param_named(i2c_dump, svec_i2c_dump, int, 0444);
 
 /* Stupid dumping tool */
 static void dumpstruct(char *name, void *ptr, int size)
@@ -139,7 +139,7 @@ int mi2c_scan(struct fmc_device *fmc)
 }
 
 /* FIXME: this is very inefficient: read several bytes in a row instead */
-int spec_eeprom_read(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
+int svec_eeprom_read(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 		void *buf, size_t size)
 {
 	int i;
@@ -166,7 +166,7 @@ int spec_eeprom_read(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 	return size;
 }
 
-int spec_eeprom_write(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
+int svec_eeprom_write(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 		 const void *buf, size_t size)
 {
 	int i, busy;
@@ -194,9 +194,9 @@ int spec_eeprom_write(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 	return size;
 }
 
-int spec_i2c_init(struct fmc_device *fmc)
+int svec_i2c_init(struct fmc_device *fmc)
 {
-	struct spec_dev *spec = fmc->carrier_data;
+	struct svec_dev *svec = fmc->carrier_data;
 	void *buf;
 	int i, found;
 
@@ -210,10 +210,10 @@ int spec_i2c_init(struct fmc_device *fmc)
 	if (!buf)
 		return -ENOMEM;
 
-	i = spec_eeprom_read(fmc, SPEC_I2C_EEPROM_ADDR, 0, buf,
+	i = svec_eeprom_read(fmc, SPEC_I2C_EEPROM_ADDR, 0, buf,
 			     SPEC_I2C_EEPROM_SIZE);
 	if (i != SPEC_I2C_EEPROM_SIZE) {
-		dev_err(&spec->pdev->dev, "EEPROM read error: retval is %i\n",
+		dev_err(svec->dev, "EEPROM read error: retval is %i\n",
 			i);
 		kfree(buf);
 		return -EIO;
@@ -221,13 +221,13 @@ int spec_i2c_init(struct fmc_device *fmc)
 	fmc->eeprom = buf;
 	fmc->eeprom_len = SPEC_I2C_EEPROM_SIZE;
 
-	if (spec_i2c_dump)
+	if (svec_i2c_dump)
 		dumpstruct("eeprom", buf, SPEC_I2C_EEPROM_SIZE);
 
 	return 0;
 }
 
-void spec_i2c_exit(struct fmc_device *fmc)
+void svec_i2c_exit(struct fmc_device *fmc)
 {
 	kfree(fmc->eeprom);
 	fmc->eeprom = NULL;

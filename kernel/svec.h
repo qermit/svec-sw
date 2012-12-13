@@ -19,6 +19,11 @@
 #define SVEC_MAX_DEVICES        32
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
 
+/* The eeprom is at address 0x50 */
+/* FIXME ? Copied from spec.h */
+#define SPEC_I2C_EEPROM_ADDR 0x50
+#define SPEC_I2C_EEPROM_SIZE (8 * 1024)
+
 enum svec_map_win {
 	MAP_CR_CSR = 0,	/* CR/CSR */
 	MAP_REG		/* A32 space */
@@ -40,13 +45,16 @@ struct svec_dev {
 	char			description[80];
 
 	struct vme_mapping 	*map[2];
+	uint32_t		mezzanine_offset[2];
+	/* FIXME: Workaround to avoid reprogram on second fd */
+	int			already_reprogrammed;
 
 	/* struct work_struct	work; */
 	const struct firmware	*fw;
 	struct list_head	list;
 	unsigned long		irqcount;
 	void			*sub_priv;
-	struct fmc_device	*fmc;
+	struct fmc_device	*fmc[2];
 	int			irq_count;	/* for mezzanine use too */
 	struct completion	compl;
 	struct gpio_chip	*gpio;
@@ -57,12 +65,17 @@ extern int svec_bootloader_is_active(struct svec_dev *svec);
 extern int svec_bootloader_unlock (struct svec_dev *svec);
 extern int svec_load_fpga(struct svec_dev *svec, const void *data, int size);
 extern int svec_load_fpga_file(struct svec_dev *svec, const char *name);
+extern void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level);
+extern int unmap_window(struct svec_dev *svec, enum svec_map_win win);
+extern int map_window( struct svec_dev *svec, enum svec_map_win win,
+			enum vme_address_modifier am, enum vme_data_width dw,
+			unsigned long base, unsigned int size);
 extern char *svec_fw_name;
 extern int spec_use_msi;
 
 /* Functions in svec-fmc.c, used by svec-vme.c */
-extern int svec_fmc_create(struct svec_dev *svec);
-extern void svec_fmc_destroy(struct svec_dev *svec);
+extern int svec_fmc_create(struct svec_dev *svec, unsigned int n);
+extern void svec_fmc_destroy(struct svec_dev *svec, unsigned int n);
 
 /* Functions in svec-i2c.c, used by svec-fmc.c */
 extern int svec_i2c_init(struct fmc_device *fmc);

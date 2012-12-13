@@ -18,8 +18,6 @@
 #define DRIVER_NAME	"svec"
 #define PFX		DRIVER_NAME ": "
 #define BASE_LOADER 0x70000
-#define MS_TICKS 1
-#define TIMEOUT 1000
 
 /* Module parameters */
 char *svec_fw_name = "fmc/svec-init.bin";
@@ -324,9 +322,10 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 {
 	struct svec_dev *svec = dev_get_drvdata(pdev);
-	
+	int i;
+
 	printk(KERN_ERR PFX "%s\n", __func__);
-	
+
 	/*
 	int ret;
 	dev_t devno = MKDEV(MAJOR(svec_devno), 0);
@@ -346,11 +345,13 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 	else
 		printk(KERN_ERR PFX "card is null!\n");
 	*/
-	
+
+	for (i=0; i<2; i++) {
+		if (svec->fmc[i] != NULL)
+			svec_fmc_destroy(svec, i);
+	}
 	unmap_window(svec, MAP_CR_CSR);
 	unmap_window(svec, MAP_REG);
-	if (svec->fmc != NULL)
-		svec_fmc_destroy(svec);
 
 	return 0;
 }
@@ -407,6 +408,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	struct svec_dev *svec;
 	const char *name;
 	dev_t devno;
+	int i;
 	int error = 0;
 
 	if (lun[ndev] >= SVEC_MAX_DEVICES) {
@@ -422,7 +424,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		printk(KERN_ERR PFX "Cannot allocate memory for svec card struct\n");
 		return -ENOMEM;
 	}
-	
+
 	/* Initialize struct fields*/
 	svec->lun = lun[ndev];
 	svec->vmebase1 = vmebase1[ndev];
@@ -433,7 +435,8 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->dev = pdev;
 	svec->map[MAP_CR_CSR] = NULL;
 	svec->map[MAP_REG] = NULL;
-	svec->fmc = NULL;
+	svec->fmc[0] = svec->fmc[1] = NULL;
+	svec->already_reprogrammed = 0;
 
 	/* Map CR/CSR space */
 	error = map_window(svec, MAP_CR_CSR, VME_CR_CSR,
@@ -508,10 +511,15 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	printk(KERN_ERR PFX "A32 mapping successful at 0x%p\n",
 					svec->map[MAP_REG]->kernel_va);
 
-	/* fmc creation */
-	error = svec_fmc_create(svec);
-	if (error)
-		goto failed_unmap;
+	/* fmc devices creation */
+	for (i=0; i<2; i++) {
+		printk(KERN_ERR "creating fmc device for mezzanine #%d...\n", i+1);
+		error = svec_fmc_create(svec, i);
+		if (error)
+			goto failed_unmap;
+		else
+			printk(KERN_ERR "fmc device created for mezzanine #%d\n", i+1);
+	}
 	return 0;
 /*
 device_create_failed:
@@ -547,7 +555,7 @@ static int __init svec_init(void)
 		printk(KERN_ERR PFX "Failed to allocate chrdev region\n");
 		goto out;
 	}
-		
+
 	svec_class = class_create(THIS_MODULE, "svec");
 	if (IS_ERR(svec_class)) {
 		printk(KERN_ERR PFX "Failed to create svec class\n");

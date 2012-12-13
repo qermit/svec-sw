@@ -50,7 +50,12 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	const struct firmware *fw;
 	struct svec_dev *svec = fmc->carrier_data;
 	struct device *dev = fmc->hwdev;
-	int ret;
+	int ret = 0;
+
+	if (svec->already_reprogrammed) {
+		printk(KERN_ERR "already programmed\n");
+		return ret;
+	}
 
 	if (!gw)
 		gw = svec_fw_name;
@@ -83,8 +88,20 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	else
 		fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
 
+	/* configure and activate function 0 */
+	printk(KERN_ERR "svec-fmc: %s setup_csr_fa0\n", __func__);
+	setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, svec->vmebase2,
+				svec->vector, svec->level);
+
+	/* Map A32 space */
+	if (svec->map[MAP_REG] == NULL)
+		map_window(svec, MAP_REG, VME_A32_USER_DATA_SCT,
+				VME_D32, svec->vmebase2, 0x100000);
+
+	svec->already_reprogrammed = 1;
 out:
 	release_firmware(fw);
+	printk(KERN_ERR "svec-fmc: %s ends\n", __func__);
 	return ret;
 }
 
@@ -112,27 +129,26 @@ static int svec_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio,
 
 static int svec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 {
-	/*
+
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
 	return svec_eeprom_read(fmc, SVEC_I2C_EEPROM_ADDR, pos, data, len);
-	*/
+
 	return -ENOTSUPP;
 }
 
 static int svec_write_ee(struct fmc_device *fmc, int pos,
 			 const void *data, int len)
 {
-	/*
+
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
 	return svec_eeprom_write(fmc, SVEC_I2C_EEPROM_ADDR, pos, data, len);
-	*/
+
 	return -ENOTSUPP;
 }
 
 static struct fmc_operations svec_fmc_operations = {
-	/* no readl/writel because we have the base pointer */
 	.readl =		svec_readl,
 	.writel =		svec_writel,
 	.validate =		svec_validate,
@@ -149,7 +165,7 @@ static struct fmc_operations svec_fmc_operations = {
  * Finally, the real init and exit
  */
 
-static int check_golden(struct fmc_device *fmc)
+static int check_sdb(struct fmc_device *fmc)
 {
 	struct svec_dev *svec = fmc->carrier_data;
 	int ret;
@@ -170,14 +186,22 @@ static int check_golden(struct fmc_device *fmc)
 	if (svec_show_sdb)
 		fmc_show_sdb_tree(fmc);
 
+	/* FIXME: For now, hardcoded mezzanine offsets for fd*/
+	/* It should be read from SBD */
+	svec->mezzanine_offset[0] = 0x10000;
+	svec->mezzanine_offset[1] = 0x20000;
+
 	return 0;
 }
 
 
-int svec_fmc_create(struct svec_dev *svec)
+int svec_fmc_create(struct svec_dev *svec, unsigned int n)
 {
 	struct fmc_device *fmc;
 	int ret;
+
+	if (n<0 || n>1)
+		return -EINVAL;
 
 	fmc = kzalloc(sizeof(*fmc), GFP_KERNEL);
 	if (!fmc)
@@ -186,31 +210,38 @@ int svec_fmc_create(struct svec_dev *svec)
 	fmc->version = FMC_VERSION;
 	fmc->carrier_name = "SVEC";
 	fmc->carrier_data = svec;
-	fmc->base = svec->map[MAP_REG]->kernel_va;
 	fmc->irq = 0; /*TO-DO*/
 	fmc->op = &svec_fmc_operations;
+	fmc->base = svec->map[MAP_REG]->kernel_va;
 	fmc->hwdev = svec->dev; /* for messages */
-	svec->fmc = fmc;
+	svec->fmc[n] = fmc;
 
 	/* Check that the golden binary is actually correct */
-	ret = check_golden(fmc);
-	if (ret)
-		goto out_free;
+	if (!svec->already_reprogrammed) {
+		ret = check_sdb(fmc);
+		if (ret)
+			goto out_free;
+	}
+	else
+		printk(KERN_ERR "SDB already checked\n");
+
+	fmc->base += svec->mezzanine_offset[n];
 
 	ret = fmc_device_register(fmc);
 	if (ret)
 		goto out_irq;
+
 	return ret;
 
 out_irq:
 out_free:
-	svec->fmc = NULL;
+	svec->fmc[n] = NULL;
 	kfree(fmc);
 	return ret;
 }
 
-void svec_fmc_destroy(struct svec_dev *svec)
+void svec_fmc_destroy(struct svec_dev *svec, unsigned int n)
 {
-	fmc_device_unregister(svec->fmc);
-	svec->fmc = NULL;
+	fmc_device_unregister(svec->fmc[n]);
+	svec->fmc[n] = NULL;
 }
