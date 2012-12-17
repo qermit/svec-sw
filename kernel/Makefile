@@ -1,10 +1,12 @@
-CPU	:= L865
-# KVER	:= 2.6.24.7-rt27
-KVER	:= 3.2.33-rt50
-KERN_DIR:= "/acc/sys/$(CPU)/usr/src/kernels/$(KVER)"
-VME_DIR := "../../repo/vmebridge/driver"
-#VME_OBJDIR := "../../repo/vmebridge/driver/$(CPU)/$(KVER)"
-VME_OBJDIR := "../../repo/vmebridge/driver/"
+
+# Assign sensible defaults, but allow overriding with environment variables.
+CPU	?:= L865
+# KVER	?= 2.6.24.7-rt27
+KVER	?= 3.2.33-rt50
+KERN_DIR?= "/acc/sys/$(CPU)/usr/src/kernels/$(KVER)"
+VME_DIR ?= "../../repo/vmebridge/driver"
+#VME_OBJDIR ?= "../../repo/vmebridge/driver/$(CPU)/$(KVER)"
+VME_OBJDIR ?= "../../repo/vmebridge/driver/"
 
 ccflags-y += -I $(M)/../include
 ccflags-y += -I $(M)/fmc-bus/kernel/include
