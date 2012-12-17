@@ -1,5 +1,8 @@
+
+VME_INC ?= /acc/src/dsc/drivers/coht/vmebridge/include/ 
+
 CFLAGS += -g -Wall
-CFLAGS += -I /acc/src/dsc/drivers/coht/vmebridge/include/ 
+CFLAGS += -I $(VME_INC)
 LDFLAGS += -L /acc/local/L865/lib 
 LDLIBS += -lvmebus
 
