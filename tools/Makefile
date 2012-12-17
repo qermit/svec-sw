@@ -8,3 +8,8 @@ vme: vme.o
 
 clean:
 	rm -f *.o vme
+
+# These targets are called from ../Makefile, just do nothing
+modules install modules_install:
+
+.PHONY: all modules clean install modules_install

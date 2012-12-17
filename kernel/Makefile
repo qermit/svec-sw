@@ -21,14 +21,8 @@ svec-objs += svec-fmc.o
 svec-objs += svec-i2c.o
 
 all: modules
-	$(MAKE) -C $(KERN_DIR) M=$(shell /bin/pwd)
-.PHONY: all clean help
 
-modules:
-	$(MAKE) -C $(KERN_DIR) M=$(shell pwd) CPU=$(CPU) KVER=$(KVER) 
+.PHONY: all modules clean help install modules_install
 
-clean:
-	$(MAKE) -C $(KERN_DIR) M=`pwd` clean
-
-help:
-	$(MAKE) -C $(KERN_DIR) M=`pwd` help
+modules clean help install modules_install:
+	$(MAKE) -C $(KERN_DIR) M=$(shell pwd) CPU=$(CPU) KVER=$(KVER) $@
