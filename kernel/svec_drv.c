@@ -59,17 +59,6 @@ static const struct file_operations svec_fops = {
 	.owner = THIS_MODULE,
 };
 
-static inline unsigned short swapbe16(unsigned short val)
-{
-        return (((val & 0xff00) >> 8) | ((val & 0xff) << 8));
-}
-
-static inline unsigned int swapbe32(unsigned int val)
-{
-        return (((val & 0xff000000) >> 24) | ((val & 0xff0000) >> 8) |
-                ((val & 0xff00) << 8) | ((val & 0xff) << 24));
-}
-
 int map_window( struct svec_dev *svec,
 		enum svec_map_win win,
 		enum vme_address_modifier am,
@@ -135,7 +124,7 @@ int svec_bootloader_unlock (struct svec_dev *svec)
 
 	/* Magic sequence: unlock bootloader mode, disable application FPGA */
 	for (i=0; i<8; i++)
-		iowrite32(swapbe32(boot_seq[i]), addr);
+		iowrite32(cpu_to_be32(boot_seq[i]), addr);
 
 	printk(KERN_ERR PFX "wrote unlock sequence at %x\n", (unsigned int)addr);
 
@@ -156,7 +145,7 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 
 	addr = svec->map[MAP_CR_CSR]->kernel_va + BASE_LOADER + XLDR_REG_IDR;
 
-	idc = swapbe32(ioread32(addr));
+	idc = be32_to_cpu(ioread32(addr));
 	idc = htonl(idc);
 
 	if (strncmp(buf, "SVEC", 4) == 0) {
@@ -269,26 +258,26 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	/* FPGA loader virtual address */
 	loader_addr = svec->map[MAP_CR_CSR]->kernel_va + BASE_LOADER;
 
-	iowrite32(swapbe32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR);
-	iowrite32(swapbe32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR);
+	iowrite32(cpu_to_be32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR);
+	iowrite32(cpu_to_be32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR);
 
 	i = 0;
 	while(i < size) {
-		rval = swapbe32(ioread32(loader_addr + XLDR_REG_FIFO_CSR));
+		rval = be32_to_cpu(ioread32(loader_addr + XLDR_REG_FIFO_CSR));
 		if (!(rval & XLDR_FIFO_CSR_FULL)) {
 			n = (size-i>4?4:size-i);
 			xldr_fifo_r0 = (n - 1) | ((n<4) ? XLDR_FIFO_R0_XLAST : 0);
 			xldr_fifo_r1 = htonl(data[i>>2]);
 
-			iowrite32(swapbe32(xldr_fifo_r0), loader_addr + XLDR_REG_FIFO_R0);
-			iowrite32(swapbe32(xldr_fifo_r1), loader_addr + XLDR_REG_FIFO_R1);
+			iowrite32(cpu_to_be32(xldr_fifo_r0), loader_addr + XLDR_REG_FIFO_R0);
+			iowrite32(cpu_to_be32(xldr_fifo_r1), loader_addr + XLDR_REG_FIFO_R1);
     			i+=n;
 		}
 	}
 
 	while(1)
 	{
-		rval = swapbe32(ioread32(loader_addr + XLDR_REG_CSR));
+		rval = be32_to_cpu(ioread32(loader_addr + XLDR_REG_CSR));
 		if(rval & XLDR_CSR_DONE) {
 			err = rval & XLDR_CSR_ERROR ? -EINVAL : 0;
 			printk(KERN_ERR PFX "Bitstream loaded, status: %s\n",
@@ -296,7 +285,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 
 			/* give the VME bus control to App FPGA */
 			pr_debug("giving up control to app FPGA\n");
-			iowrite32(swapbe32(XLDR_CSR_EXIT), loader_addr + XLDR_REG_CSR);
+			iowrite32(cpu_to_be32(XLDR_CSR_EXIT), loader_addr + XLDR_REG_CSR);
 			break;
 		}
 	}
