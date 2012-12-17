@@ -13,7 +13,7 @@
 #include "svec.h"
 
 static ssize_t svec_show_bootloader_active(struct device *pdev,
-						struct device_attribute *attr, 
+						struct device_attribute *attr,
 						char *buf)
 {
 	struct svec_dev *card = dev_get_drvdata(pdev);
@@ -21,18 +21,18 @@ static ssize_t svec_show_bootloader_active(struct device *pdev,
 	int active;
 
 	active = svec_bootloader_is_active(card);
-	if (active < 0) 
+	if (active < 0)
 		return -EINVAL;
-	
+
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", active);
 
 	return ret;
 }
 
-static ssize_t svec_store_bootloader_active(struct device *pdev, 
+static ssize_t svec_store_bootloader_active(struct device *pdev,
 						struct device_attribute *attr,
 						const char *buf,
-						 size_t count)
+						size_t count)
 {
 	struct svec_dev *card = dev_get_drvdata(pdev);
 
@@ -41,7 +41,7 @@ static ssize_t svec_store_bootloader_active(struct device *pdev,
 	return count;
 }
 
-static ssize_t svec_show_firmware_name(struct device *pdev, 
+static ssize_t svec_show_firmware_name(struct device *pdev,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -50,7 +50,7 @@ static ssize_t svec_show_firmware_name(struct device *pdev,
 	int bl_active;
 
 	bl_active = svec_bootloader_is_active(card);
-	if (bl_active < 0) 
+	if (bl_active < 0)
 		return -EINVAL;
 
 	if (bl_active)
@@ -61,7 +61,7 @@ static ssize_t svec_show_firmware_name(struct device *pdev,
 	return ret;
 }
 
-static ssize_t svec_store_firmware_name(struct device *pdev, 
+static ssize_t svec_store_firmware_name(struct device *pdev,
 					struct device_attribute *attr,
 					const char *buf,
 					size_t count)
@@ -74,13 +74,13 @@ static ssize_t svec_store_firmware_name(struct device *pdev,
 	error = svec_load_fpga_file(card, buf);
 
 	if (!error)
-		snprintf(card->fw_name, PAGE_SIZE, "%s", buf); 
+		snprintf(card->fw_name, PAGE_SIZE, "%s", buf);
 
 	return count;
 }
 
 
-static ssize_t svec_show_interrupt_vector(struct device *pdev, 
+static ssize_t svec_show_interrupt_vector(struct device *pdev,
 						struct device_attribute *attr,
 						char *buf)
 {
@@ -89,7 +89,7 @@ static ssize_t svec_show_interrupt_vector(struct device *pdev,
 	return snprintf(buf, PAGE_SIZE, "0x%x\n", card->vector);
 }
 
-static ssize_t svec_show_interrupt_level(struct device *pdev, 
+static ssize_t svec_show_interrupt_level(struct device *pdev,
 						struct device_attribute *attr,
 						char *buf)
 {
@@ -100,22 +100,22 @@ static ssize_t svec_show_interrupt_level(struct device *pdev,
 
 
 /********************** SVEC board attributes ***********************/
-static DEVICE_ATTR(bootloader_active, 
-			S_IWUSR | S_IRUGO, 
-			svec_show_bootloader_active, 
+static DEVICE_ATTR(bootloader_active,
+			S_IWUSR | S_IRUGO,
+			svec_show_bootloader_active,
 			svec_store_bootloader_active);
 
-static DEVICE_ATTR(firmware_name, 
-			S_IWUSR | S_IRUGO, 
-			svec_show_firmware_name, 
+static DEVICE_ATTR(firmware_name,
+			S_IWUSR | S_IRUGO,
+			svec_show_firmware_name,
 			svec_store_firmware_name);
-static DEVICE_ATTR(interrupt_vector, 
-			S_IRUGO, 
-			svec_show_interrupt_vector, 
+static DEVICE_ATTR(interrupt_vector,
+			S_IRUGO,
+			svec_show_interrupt_vector,
 			NULL);
-static DEVICE_ATTR(interrupt_level, 
-			S_IRUGO, 
-			svec_show_interrupt_level, 
+static DEVICE_ATTR(interrupt_level,
+			S_IRUGO,
+			svec_show_interrupt_level,
 			NULL);
 
 static struct attribute *svec_attrs[] = {
