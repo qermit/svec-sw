@@ -105,6 +105,8 @@ int unmap_window(struct svec_dev *svec, enum svec_map_win win)
 		return -EINVAL;
 	}
 	printk(KERN_ERR PFX "window %d unmaped\n", (int)win);
+	kfree(svec->map[win]);
+	svec->map[win] = NULL;
 	return 0;
 }
 
