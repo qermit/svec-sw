@@ -21,8 +21,8 @@
 
 /* The eeprom is at address 0x50 */
 /* FIXME ? Copied from spec.h */
-#define SPEC_I2C_EEPROM_ADDR 0x50
-#define SPEC_I2C_EEPROM_SIZE (8 * 1024)
+#define SVEC_I2C_EEPROM_ADDR 0x50
+#define SVEC_I2C_EEPROM_SIZE (8 * 1024)
 
 enum svec_map_win {
 	MAP_CR_CSR = 0,	/* CR/CSR */
@@ -85,9 +85,6 @@ extern int svec_eeprom_read(struct fmc_device *fmc, int i2c_addr,
 extern int svec_eeprom_write(struct fmc_device *fmc, int i2c_addr,
 			     uint32_t offset, const void *buf, size_t size);
 
-/* The eeprom in SVEC is not anymore at address 0x50 */
-#define SVEC_I2C_EEPROM_ADDR 0xFFFFFFFF
-#define SVEC_I2C_EEPROM_SIZE (8 * 1024)
 
 /* Functions in svec-gpio.c */
 extern int svec_gpio_init(struct fmc_device *fmc);

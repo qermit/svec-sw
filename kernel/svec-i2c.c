@@ -206,23 +206,23 @@ int svec_i2c_init(struct fmc_device *fmc)
 		return 0;
 	}
 
-	buf = kmalloc(SPEC_I2C_EEPROM_SIZE, GFP_KERNEL);
+	buf = kmalloc(SVEC_I2C_EEPROM_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	i = svec_eeprom_read(fmc, SPEC_I2C_EEPROM_ADDR, 0, buf,
-			     SPEC_I2C_EEPROM_SIZE);
-	if (i != SPEC_I2C_EEPROM_SIZE) {
+	i = svec_eeprom_read(fmc, SVEC_I2C_EEPROM_ADDR, 0, buf,
+			     SVEC_I2C_EEPROM_SIZE);
+	if (i != SVEC_I2C_EEPROM_SIZE) {
 		dev_err(svec->dev, "EEPROM read error: retval is %i\n",
 			i);
 		kfree(buf);
 		return -EIO;
 	}
 	fmc->eeprom = buf;
-	fmc->eeprom_len = SPEC_I2C_EEPROM_SIZE;
+	fmc->eeprom_len = SVEC_I2C_EEPROM_SIZE;
 
 	if (svec_i2c_dump)
-		dumpstruct("eeprom", buf, SPEC_I2C_EEPROM_SIZE);
+		dumpstruct("eeprom", buf, SVEC_I2C_EEPROM_SIZE);
 
 	return 0;
 }
