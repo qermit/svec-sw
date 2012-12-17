@@ -21,12 +21,6 @@ module_param_named(show_sdb, svec_show_sdb, int, 0444);
 
 /* The main role of this file is offering the fmc_operations for the svec */
 
-static int svec_validate(struct fmc_device *fmc, struct fmc_driver *drv)
-{
-
-	return 0; /* everyhing is valid */
-}
-
 static uint32_t svec_readl(struct fmc_device *fmc, int offset)
 {
 	uint32_t val = 0;
@@ -63,7 +57,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	if (!strlen(gw)) { /* use module parameters from the driver */
 		int index;
 
-		index = svec_validate(fmc, drv);
+		index = 0; /* FIXME: check what this is */
 
 		gw = drv->gw_val[index];
 		if (!gw)
@@ -151,7 +145,6 @@ static int svec_write_ee(struct fmc_device *fmc, int pos,
 static struct fmc_operations svec_fmc_operations = {
 	.readl =		svec_readl,
 	.writel =		svec_writel,
-	.validate =		svec_validate,
 	.reprogram =		svec_reprogram,
 	.irq_request =		svec_irq_request,
 	.irq_ack =		svec_irq_ack,
