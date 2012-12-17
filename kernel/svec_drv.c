@@ -17,7 +17,7 @@
 
 #define DRIVER_NAME	"svec"
 #define PFX		DRIVER_NAME ": "
-#define BASE_LOADER 0x70000
+#define BASE_LOADER	0x70000
 
 /* Module parameters */
 char *svec_fw_name = "fmc/svec-init.bin";
@@ -88,7 +88,7 @@ int map_window( struct svec_dev *svec,
 
 	if (( rval = vme_find_mapping(svec->map[win], 1)) != 0) {
 		printk(KERN_ERR PFX "Failed to map window %d: (%d)\n", (int)win, rval);
-	        return -EINVAL;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -273,7 +273,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 
 			iowrite32(cpu_to_be32(xldr_fifo_r0), loader_addr + XLDR_REG_FIFO_R0);
 			iowrite32(cpu_to_be32(xldr_fifo_r1), loader_addr + XLDR_REG_FIFO_R1);
-    			i+=n;
+			i+=n;
 		}
 	}
 
@@ -318,10 +318,10 @@ static int __devinit svec_match(struct device *pdev, unsigned int ndev)
 	/* TODO */
 
 	if (ndev >= vmebase1_num)
-        	 return 0;
+		 return 0;
 	if (ndev >= vector_num || ndev >= level_num) {
-        	 dev_warn(pdev, "irq vector/level missing\n");
-	         return 0;
+		 dev_warn(pdev, "irq vector/level missing\n");
+		 return 0;
 	}
 
 	return 1;
@@ -342,11 +342,11 @@ int svec_load_fpga_file(struct svec_dev *svec, const char *name)
 	err = request_firmware(&fw, name, dev);
 
 	if (err < 0) {
-        	dev_err(dev, "request firmware \"%s\": error %i\n", name, err);
-	        return err;
+		dev_err(dev, "request firmware \"%s\": error %i\n", name, err);
+		return err;
 	}
 	printk (KERN_ERR PFX "got file \"%s\", %i (0x%x) bytes\n",
-        	name, fw->size, fw->size);
+		name, fw->size, fw->size);
 
 	err = svec_load_fpga(svec, (uint32_t *)fw->data, fw->size);
 	release_firmware(fw);
@@ -402,7 +402,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 	name = pdev->bus_id;
 #else
-        name = dev_name(pdev);
+	name = dev_name(pdev);
 #endif
 	strlcpy(svec->driver, DRIVER_NAME, sizeof(svec->driver));
 	snprintf(svec->description, sizeof(svec->description),
@@ -469,12 +469,12 @@ failed:
 }
 
 static struct vme_driver svec_driver = {
-        .match          = svec_match,
-        .probe          = svec_probe,
-        .remove         = __devexit_p(svec_remove),
-        .driver         = {
-       		.name   = DRIVER_NAME,
-        },
+	.match		= svec_match,
+	.probe		= svec_probe,
+	.remove		= __devexit_p(svec_remove),
+	.driver		= {
+	.name		= DRIVER_NAME,
+	},
 };
 
 static int __init svec_init(void)
