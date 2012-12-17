@@ -311,26 +311,6 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 
 	printk(KERN_ERR PFX "%s\n", __func__);
 
-	/*
-	int ret;
-	dev_t devno = MKDEV(MAJOR(svec_devno), 0);
-
-	ret = vme_free_irq(vector[ndev]);
-	if (ret)
-		dev_warn(pdev, "Cannot free irq %d, err %d\n", vector[ndev], ret);
-	*/
-	/* avoid deleting unregistered devices */
-	/*
-	if (svec) {
-		if (svec->cdev.owner == THIS_MODULE) {
-			printk(KERN_ERR PFX "unregister_chrdev_region\n");
-			unregister_chrdev_region(devno, lun_num);
-		}
-	}
-	else
-		printk(KERN_ERR PFX "card is null!\n");
-	*/
-
 	for (i=0; i<2; i++) {
 		if (svec->fmc[i] != NULL)
 			svec_fmc_destroy(svec, i);
@@ -340,12 +320,7 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 
 	return 0;
 }
-/*
-static int svec_irq(void *arg)
-{
-	return 0;
-}
-*/
+
 static int __devinit svec_match(struct device *pdev, unsigned int ndev)
 {
 	printk(KERN_ERR PFX "%s\n", __func__);
@@ -455,20 +430,6 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		dev_err(pdev, "Error %d adding cdev %d\n", error, ndev);
 		goto failed;
 	}
-/*
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-        svec->dev = device_create(svec_class, pdev, devno, NULL, "svec.%i", ndev);
-#else
-        svec->dev = device_create(svec_class, pdev, devno, "svec.%i", ndev);
-#endif
-
-	if (IS_ERR(pdev)) {
-		error = PTR_ERR(svec->dev);
-		dev_err(pdev, "Error %d creating device %d\n", error, ndev);
-		svec->dev = NULL;
-		goto device_create_failed;
-	}
-*/
 
 	dev_set_drvdata(svec->dev, svec);
 	error = svec_create_sysfs_files(svec);
@@ -506,10 +467,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 			printk(KERN_ERR "fmc device created for mezzanine #%d\n", i+1);
 	}
 	return 0;
-/*
-device_create_failed:
-	cdev_del(&svec->cdev);
- */
+
 failed_unmap:
 	unmap_window(svec, MAP_CR_CSR);
 	unmap_window(svec, MAP_REG);
