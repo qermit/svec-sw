@@ -119,18 +119,6 @@ int unmap_window(struct svec_dev *svec, enum svec_map_win win)
 	return 0;
 }
 
-
-#define FUN0ADER  (0x7FF63)
-#define INT_LEVEL (0x7ff5b)
-#define INTVECTOR (0x7ff5f)
-#define WB_32_64 (0x7ff33)
-#define BIT_SET_REG (0x7FFFB)
-#define BIT_CLR_REG (0x7FFF7)
-#define WB32 1
-#define WB64 0
-#define RESET_CORE 0x80
-#define ENABLE_CORE 0x10
-
 int svec_bootloader_unlock (struct svec_dev *svec)
 {
 	const uint32_t boot_seq[8] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
@@ -171,14 +159,11 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 	idc = swapbe32(ioread32(addr));
 	idc = htonl(idc);
 
-
-	if(strncmp(buf, "SVEC", 4) == 0)
-	{
+	if (strncmp(buf, "SVEC", 4) == 0) {
 		printk(KERN_INFO PFX "IDCode value %x [%s].\n", idc, buf);
 		/* Bootloader active. Unlocked */
 		return 1;
-	}
-	else
+	} else
 		printk(KERN_INFO PFX "IDCode value %x.\n", idc);
 
 	/* Bootloader not active. Locked */

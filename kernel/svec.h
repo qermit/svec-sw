@@ -85,6 +85,17 @@ extern int svec_eeprom_read(struct fmc_device *fmc, int i2c_addr,
 extern int svec_eeprom_write(struct fmc_device *fmc, int i2c_addr,
 			     uint32_t offset, const void *buf, size_t size);
 
+/* SVEC CSR offsets */
+#define FUN0ADER 	0x7FF63
+#define INT_LEVEL	0x7ff5b
+#define INTVECTOR	0x7ff5f
+#define WB_32_64	0x7ff33
+#define BIT_SET_REG	0x7FFFB
+#define BIT_CLR_REG	0x7FFF7
+#define WB32		1
+#define WB64		0
+#define RESET_CORE	0x80
+#define ENABLE_CORE	0x10
 
 /* Functions in svec-gpio.c */
 extern int svec_gpio_init(struct fmc_device *fmc);
