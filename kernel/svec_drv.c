@@ -69,12 +69,12 @@ int map_window( struct svec_dev *svec,
 	int rval;
 
 	if (svec->map[win] != NULL) {
-		printk(KERN_ERR PFX "Error: window %d already mapped\n", (int)win);
+		pr_err("svec: Window %d already mapped\n", (int)win);
 		return -EPERM;
 	}
 	svec->map[win] = kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
 	if (!svec->map[win]) {
-		printk(KERN_ERR PFX "kzalloc failed allocating memory for vme_mapping struct\n");
+		pr_err("svec: Cannot allocate memory for vme_mapping struct\n");
 		return -ENOMEM;
 	}
 
@@ -87,7 +87,7 @@ int map_window( struct svec_dev *svec,
 	svec->map[win]->sizel =		size;
 
 	if (( rval = vme_find_mapping(svec->map[win], 1)) != 0) {
-		printk(KERN_ERR PFX "Failed to map window %d: (%d)\n", (int)win, rval);
+		pr_err("svec: Failed to map window %d: (%d)\n", (int)win, rval);
 		return -EINVAL;
 	}
 
@@ -96,15 +96,17 @@ int map_window( struct svec_dev *svec,
 
 int unmap_window(struct svec_dev *svec, enum svec_map_win win)
 {
+	struct device *dev = svec->dev;
+
 	if (svec->map[win] == NULL) {
-		printk(KERN_ERR PFX "window %d not mapped. Cannot unmap\n", (int)win);
+		pr_err("svec: Window %d not mapped. Cannot unmap\n", (int)win);
 		return -EINVAL;
 	}
 	if (vme_release_mapping(svec->map[win], 1)) {
-		printk(KERN_ERR PFX "Unmap for window %d failed\n", (int)win);
+		pr_err("svec: Unmap for window %d failed\n", (int)win);
 		return -EINVAL;
 	}
-	printk(KERN_ERR PFX "window %d unmaped\n", (int)win);
+	dev_info(dev, "svec: Window %d unmaped\n", (int)win);
 	kfree(svec->map[win]);
 	svec->map[win] = NULL;
 	return 0;
@@ -112,13 +114,14 @@ int unmap_window(struct svec_dev *svec, enum svec_map_win win)
 
 int svec_bootloader_unlock (struct svec_dev *svec)
 {
+	struct device *dev = svec->dev;
 	const uint32_t boot_seq[8] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
 	void *addr;
 	int i;
 
 	/* Check if CS/CSR window is mapped */
 	if (svec->map[MAP_CR_CSR] == NULL) {
-		printk(KERN_ERR PFX "CS/CSR window not found\n");
+		pr_err("svec: CS/CSR window not found\n");
 		return -EINVAL;
 	}
 
@@ -128,20 +131,21 @@ int svec_bootloader_unlock (struct svec_dev *svec)
 	for (i=0; i<8; i++)
 		iowrite32(cpu_to_be32(boot_seq[i]), addr);
 
-	printk(KERN_ERR PFX "wrote unlock sequence at %x\n", (unsigned int)addr);
+	dev_info(dev, "svec: Wrote unlock sequence at %x\n", (unsigned int)addr);
 
 	return 0;
 }
 
 int svec_bootloader_is_active(struct svec_dev *svec)
 {
+	struct device *dev = svec->dev;
 	uint32_t idc;
 	char *buf = (char *)&idc;
 	void *addr;
 
 	/* Check if CS/CSR window is mapped */
 	if (svec->map[MAP_CR_CSR] == NULL) {
-		printk(KERN_ERR PFX "CS/CSR window not found\n");
+		pr_err("svec: CS/CSR window not found\n");
 		return -EINVAL;
 	}
 
@@ -151,11 +155,11 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 	idc = htonl(idc);
 
 	if (strncmp(buf, "SVEC", 4) == 0) {
-		printk(KERN_INFO PFX "IDCode value %x [%s].\n", idc, buf);
+		dev_info(dev, "svec: IDCode value %x [%s].\n", idc, buf);
 		/* Bootloader active. Unlocked */
 		return 1;
 	} else
-		printk(KERN_INFO PFX "IDCode value %x.\n", idc);
+		dev_info(dev, "svec: IDCode value %x.\n", idc);
 
 	/* Bootloader not active. Locked */
 	return 0;
@@ -314,7 +318,6 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 
 static int __devinit svec_match(struct device *pdev, unsigned int ndev)
 {
-	printk(KERN_ERR PFX "%s\n", __func__);
 	/* TODO */
 
 	if (ndev >= vmebase1_num)
@@ -336,17 +339,18 @@ int svec_load_fpga_file(struct svec_dev *svec, const char *name)
 	dev_info(dev, "%s: file %s\n", __func__, name);
 
 	if (name == NULL) {
-		printk (KERN_ERR PFX "%s: file name is NULL\n", __func__);
+		pr_err("svec: %s. File name is NULL\n", __func__);
 	}
 
 	err = request_firmware(&fw, name, dev);
 
 	if (err < 0) {
-		dev_err(dev, "request firmware \"%s\": error %i\n", name, err);
+		dev_err(dev, "svec: Request firmware \"%s\": error %i\n",
+			name, err);
 		return err;
 	}
-	printk (KERN_ERR PFX "got file \"%s\", %i (0x%x) bytes\n",
-		name, fw->size, fw->size);
+	dev_info(dev, "svec: Got file \"%s\", %i (0x%x) bytes\n",
+			name, fw->size, fw->size);
 
 	err = svec_load_fpga(svec, (uint32_t *)fw->data, fw->size);
 	release_firmware(fw);
@@ -363,7 +367,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	int error = 0;
 
 	if (lun[ndev] >= SVEC_MAX_DEVICES) {
-		printk(KERN_ERR PFX "Card lun %d out of range [0..%d]\n",
+		pr_err("Card lun %d out of range [0..%d]\n",
 			lun[ndev], SVEC_MAX_DEVICES -1);
 		return -EINVAL;
 	}

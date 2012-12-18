@@ -135,8 +135,6 @@ int svec_create_sysfs_files (struct svec_dev *card)
 {
 	int error = 0;
 
-	printk(KERN_ERR "svec: %s\n", __func__);
-
 	error = sysfs_create_group(&card->dev->kobj, &svec_attr_group);
 
 	return error;

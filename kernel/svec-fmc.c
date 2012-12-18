@@ -47,7 +47,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	int ret = 0;
 
 	if (svec->already_reprogrammed) {
-		printk(KERN_ERR "already programmed\n");
+		dev_info(fmc->hwdev, "Already programmed\n");
 		return ret;
 	}
 
@@ -83,7 +83,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
 
 	/* configure and activate function 0 */
-	printk(KERN_ERR "svec-fmc: %s setup_csr_fa0\n", __func__);
+	dev_info(fmc->hwdev, "svec-fmc: setup fa0\n");
 	setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, svec->vmebase2,
 				svec->vector, svec->level);
 
@@ -95,7 +95,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	svec->already_reprogrammed = 1;
 out:
 	release_firmware(fw);
-	printk(KERN_ERR "svec-fmc: %s ends\n", __func__);
+	pr_err("svec-fmc: svec reprogram failed while loading %s\n", gw);
 	return ret;
 }
 
@@ -215,8 +215,6 @@ int svec_fmc_create(struct svec_dev *svec, unsigned int n)
 		if (ret)
 			goto out_free;
 	}
-	else
-		printk(KERN_ERR "SDB already checked\n");
 
 	fmc->base += svec->mezzanine_offset[n];
 
