@@ -98,6 +98,11 @@ out:
 	return ret;
 }
 
+static int svec_validate(struct fmc_device *fmc, struct fmc_driver *drv)
+{
+	return 0; /* everyhing is valid */
+}
+
 static int svec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 			    char *name, int flags)
 {
@@ -151,6 +156,7 @@ static struct fmc_operations svec_fmc_operations = {
 	.gpio_config =		svec_gpio_config,
 	.read_ee =		svec_read_ee,
 	.write_ee =		svec_write_ee,
+	.validate =		svec_validate,
 };
 
 /*
