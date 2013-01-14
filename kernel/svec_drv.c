@@ -66,15 +66,16 @@ int map_window( struct svec_dev *svec,
 		unsigned long base,
 		unsigned int size)
 {
+	struct device *dev = svec->dev;
 	int rval;
 
 	if (svec->map[win] != NULL) {
-		pr_err("svec: Window %d already mapped\n", (int)win);
+		dev_err(dev, "Window %d already mapped\n", (int)win);
 		return -EPERM;
 	}
 	svec->map[win] = kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
 	if (!svec->map[win]) {
-		pr_err("svec: Cannot allocate memory for vme_mapping struct\n");
+		dev_err(dev, "Cannot allocate memory for vme_mapping struct\n");
 		return -ENOMEM;
 	}
 
@@ -87,7 +88,7 @@ int map_window( struct svec_dev *svec,
 	svec->map[win]->sizel =		size;
 
 	if (( rval = vme_find_mapping(svec->map[win], 1)) != 0) {
-		pr_err("svec: Failed to map window %d: (%d)\n", (int)win, rval);
+		dev_err(dev, "Failed to map window %d: (%d)\n", (int)win, rval);
 		return -EINVAL;
 	}
 
@@ -99,14 +100,14 @@ int unmap_window(struct svec_dev *svec, enum svec_map_win win)
 	struct device *dev = svec->dev;
 
 	if (svec->map[win] == NULL) {
-		pr_err("svec: Window %d not mapped. Cannot unmap\n", (int)win);
+		dev_err(dev, "Window %d not mapped. Cannot unmap\n", (int)win);
 		return -EINVAL;
 	}
 	if (vme_release_mapping(svec->map[win], 1)) {
-		pr_err("svec: Unmap for window %d failed\n", (int)win);
+		dev_err(dev, "Unmap for window %d failed\n", (int)win);
 		return -EINVAL;
 	}
-	dev_info(dev, "svec: Window %d unmaped\n", (int)win);
+	dev_info(dev, "Window %d unmaped\n", (int)win);
 	kfree(svec->map[win]);
 	svec->map[win] = NULL;
 	return 0;
@@ -121,7 +122,7 @@ int svec_bootloader_unlock (struct svec_dev *svec)
 
 	/* Check if CS/CSR window is mapped */
 	if (svec->map[MAP_CR_CSR] == NULL) {
-		pr_err("svec: CS/CSR window not found\n");
+		dev_err(dev, "CS/CSR window not found\n");
 		return -EINVAL;
 	}
 
@@ -131,7 +132,7 @@ int svec_bootloader_unlock (struct svec_dev *svec)
 	for (i=0; i<8; i++)
 		iowrite32(cpu_to_be32(boot_seq[i]), addr);
 
-	dev_info(dev, "svec: Wrote unlock sequence at %x\n", (unsigned int)addr);
+	dev_info(dev, "Wrote unlock sequence at %x\n", (unsigned int)addr);
 
 	return 0;
 }
@@ -145,7 +146,7 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 
 	/* Check if CS/CSR window is mapped */
 	if (svec->map[MAP_CR_CSR] == NULL) {
-		pr_err("svec: CS/CSR window not found\n");
+		dev_err(dev, "CS/CSR window not found\n");
 		return -EINVAL;
 	}
 
@@ -155,11 +156,11 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 	idc = htonl(idc);
 
 	if (strncmp(buf, "SVEC", 4) == 0) {
-		dev_info(dev, "svec: IDCode value %x [%s].\n", idc, buf);
+		dev_info(dev, "IDCode value %x [%s].\n", idc, buf);
 		/* Bootloader active. Unlocked */
 		return 1;
 	} else
-		dev_info(dev, "svec: IDCode value %x.\n", idc);
+		dev_info(dev, "IDCode value %x.\n", idc);
 
 	/* Bootloader not active. Locked */
 	return 0;
@@ -228,6 +229,7 @@ void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
 int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 {
 
+	struct device *dev = svec->dev;
 	const uint32_t *data = blob;
 	void *loader_addr; /* FPGA loader virtual address */
 	uint32_t n;
@@ -239,25 +241,25 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 
 	/* Check if we have something to do... */
 	if ((data == NULL) || (size == 0)){
-		printk(KERN_ERR PFX "%s: data to be load is NULL\n", __func__);
+		dev_err(dev, "%s: data to be load is NULL\n", __func__);
 		return -EINVAL;
 	}
 
 	/* Check if CS/CSR window is mapped */
 	if (svec->map[MAP_CR_CSR] == NULL) {
-		printk(KERN_ERR PFX "CS/CSR window not found\n");
+		dev_err(dev, "CS/CSR window not found\n");
 		return -EINVAL;
 	}
 
 	/* Unlock (activate) bootloader */
 	if (svec_bootloader_unlock(svec)) {
-		printk(KERN_ERR PFX "Bootloader unlock failed\n");
+		dev_err(dev, "Bootloader unlock failed\n");
 		return -EINVAL;
 	}
 
 	/* Check if bootloader is active */
 	if (!svec_bootloader_is_active(svec)) {
-		printk(KERN_ERR PFX "Bootloader locked after unlock!\n");
+		dev_err(dev, "Bootloader locked after unlock!\n");
 		return -EINVAL;
 	}
 
@@ -286,7 +288,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 		rval = be32_to_cpu(ioread32(loader_addr + XLDR_REG_CSR));
 		if(rval & XLDR_CSR_DONE) {
 			err = rval & XLDR_CSR_ERROR ? -EINVAL : 0;
-			printk(KERN_ERR PFX "Bitstream loaded, status: %s\n",
+			dev_err(dev, "Bitstream loaded, status: %s\n",
 				(err < 0 ? "ERROR" : "OK"));
 
 			/* give the VME bus control to App FPGA */
@@ -304,7 +306,7 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 	struct svec_dev *svec = dev_get_drvdata(pdev);
 	int i;
 
-	printk(KERN_ERR PFX "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	for (i=0; i<2; i++) {
 		if (svec->fmc[i] != NULL)
@@ -336,20 +338,18 @@ int svec_load_fpga_file(struct svec_dev *svec, const char *name)
 	const struct firmware *fw;
 	int err = 0;
 
-	dev_info(dev, "%s: file %s\n", __func__, name);
-
 	if (name == NULL) {
-		pr_err("svec: %s. File name is NULL\n", __func__);
+		dev_err(dev, "%s. File name is NULL\n", __func__);
 	}
 
 	err = request_firmware(&fw, name, dev);
 
 	if (err < 0) {
-		dev_err(dev, "svec: Request firmware \"%s\": error %i\n",
+		dev_err(dev, "Request firmware \"%s\": error %i\n",
 			name, err);
 		return err;
 	}
-	dev_info(dev, "svec: Got file \"%s\", %i (0x%x) bytes\n",
+	dev_info(dev, "Got file \"%s\", %i (0x%x) bytes\n",
 			name, fw->size, fw->size);
 
 	err = svec_load_fpga(svec, (uint32_t *)fw->data, fw->size);
@@ -366,17 +366,17 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	int i;
 	int error = 0;
 
+	pr_debug("Probe for device %02d\n", ndev);
+
 	if (lun[ndev] >= SVEC_MAX_DEVICES) {
-		pr_err("Card lun %d out of range [0..%d]\n",
+		dev_err(pdev, "Card lun %d out of range [0..%d]\n",
 			lun[ndev], SVEC_MAX_DEVICES -1);
 		return -EINVAL;
 	}
 
-	printk (KERN_ERR PFX "probe for device %02d\n", ndev);
-
 	svec = kzalloc(sizeof(*svec), GFP_KERNEL);
 	if (svec == NULL) {
-		printk(KERN_ERR PFX "Cannot allocate memory for svec card struct\n");
+		dev_err(pdev, "Cannot allocate memory for svec card struct\n");
 		return -ENOMEM;
 	}
 
@@ -397,11 +397,11 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	error = map_window(svec, MAP_CR_CSR, VME_CR_CSR,
 				VME_D32, svec->vmebase1, 0x80000);
 	if (error) {
-		printk(KERN_ERR PFX "error mapping CR/CSR space\n");
+		dev_err(pdev, "Error mapping CR/CSR space\n");
 		goto failed;
 	}
-	printk(KERN_ERR PFX "CR/CSR mapping successful at 0x%p\n",
-					svec->map[MAP_CR_CSR]->kernel_va);
+	pr_debug("CR/CSR mapping successful at 0x%p\n",
+				svec->map[MAP_CR_CSR]->kernel_va);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 	name = pdev->bus_id;
@@ -413,7 +413,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		"SVEC at VME-A32 0x%08lx - 0x%08lx irqv %d irql %d",
 		svec->vmebase1, svec->vmebase2, vector[ndev], level[ndev]);
 
-	printk (KERN_ERR PFX "%s\n", svec->description);
+	dev_info(pdev, "%s\n", svec->description);
 
 	/*Create cdev, just to know the carrier is there */
 	devno = MKDEV(MAJOR(svec_devno), ndev);
@@ -429,7 +429,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	dev_set_drvdata(svec->dev, svec);
 	error = svec_create_sysfs_files(svec);
 	if (error) {
-		printk(KERN_ERR PFX "Error creating sysfs files\n");
+		dev_err(pdev, "Error creating sysfs files\n");
 		goto failed;
 	}
 
@@ -446,20 +446,20 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	error = map_window(svec, MAP_REG, VME_A32_USER_DATA_SCT,
 				VME_D32, svec->vmebase2, 0x100000);
 	if (error) {
-		printk(KERN_ERR PFX "error mapping CR/CSR space\n");
+		dev_err(pdev, "error mapping CR/CSR space\n");
 		goto failed;
 	}
-	printk(KERN_ERR PFX "A32 mapping successful at 0x%p\n",
+	dev_info(pdev, "A32 mapping successful at 0x%p\n",
 					svec->map[MAP_REG]->kernel_va);
 
 	/* fmc devices creation */
 	for (i=0; i<2; i++) {
-		printk(KERN_ERR "creating fmc device for mezzanine #%d...\n", i+1);
+		dev_err(pdev, "Creating fmc device for mezzanine #%d...\n", i+1);
 		error = svec_fmc_create(svec, i);
 		if (error)
 			goto failed_unmap;
 		else
-			printk(KERN_ERR "fmc device created for mezzanine #%d\n", i+1);
+			dev_info(pdev, "fmc device created for mezzanine #%d\n", i+1);
 	}
 	return 0;
 

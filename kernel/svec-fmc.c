@@ -27,8 +27,6 @@ static uint32_t svec_readl(struct fmc_device *fmc, int offset)
 
 	val = ioread32be(fmc->base + offset);
 
-	/*printk(KERN_ERR "%s: [0x%p]: 0x%x\n", __func__, fmc->base + offset, val);*/
-
 	return val;
 }
 
@@ -36,7 +34,6 @@ static void svec_writel(struct fmc_device *fmc, uint32_t val, int offset)
 {
 	iowrite32be(val, fmc->base + offset);
 }
-
 
 static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 			  char *gw)
@@ -50,6 +47,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		dev_info(fmc->hwdev, "Already programmed\n");
 		return ret;
 	}
+
 
 	if (!gw)
 		gw = svec_fw_name;
@@ -95,7 +93,8 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	svec->already_reprogrammed = 1;
 out:
 	release_firmware(fw);
-	pr_err("svec-fmc: svec reprogram failed while loading %s\n", gw);
+	if (ret < 0)
+		pr_err("svec-fmc: svec reprogram failed while loading %s\n", gw);
 	return ret;
 }
 
