@@ -21,7 +21,6 @@
 
 /* The eeprom is at address 0x50 */
 /* FIXME ? Copied from spec.h */
-#define SVEC_I2C_EEPROM_ADDR 0x50
 #define SVEC_I2C_EEPROM_SIZE (8 * 1024)
 
 enum svec_map_win {
@@ -39,13 +38,12 @@ struct svec_dev {
 
 	char			*submod_name;
 	char			*fw_name;
-        struct device           *dev;
+	struct device           *dev;
 	struct cdev		cdev;
 	char 			driver[16];
 	char			description[80];
 
 	struct vme_mapping 	*map[2];
-	uint32_t		mezzanine_offset[2];
 	/* FIXME: Workaround to avoid reprogram on second fd */
 	int			already_reprogrammed;
 
@@ -54,7 +52,8 @@ struct svec_dev {
 	struct list_head	list;
 	unsigned long		irqcount;
 	void			*sub_priv;
-	struct fmc_device	*fmc[2];
+	struct fmc_device	*fmcs;
+	int			slot_n;
 	int			irq_count;	/* for mezzanine use too */
 	struct completion	compl;
 	struct gpio_chip	*gpio;
@@ -75,10 +74,10 @@ extern int spec_use_msi;
 
 /* Functions in svec-fmc.c, used by svec-vme.c */
 extern int svec_fmc_create(struct svec_dev *svec, unsigned int n);
-extern void svec_fmc_destroy(struct svec_dev *svec, unsigned int n);
+extern void svec_fmc_check(struct svec_dev *svec, unsigned int n);
 
 /* Functions in svec-i2c.c, used by svec-fmc.c */
-extern int svec_i2c_init(struct fmc_device *fmc);
+extern int svec_i2c_init(struct fmc_device *fmc, unsigned int n);
 extern void svec_i2c_exit(struct fmc_device *fmc);
 extern int svec_eeprom_read(struct fmc_device *fmc, int i2c_addr,
 			    uint32_t offset, void *buf, size_t size);

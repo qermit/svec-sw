@@ -216,6 +216,7 @@ void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
 	csr_write(ENABLE_CORE, base, BIT_SET_REG);
 
 	/* DEBUG */
+	/*
 	pr_debug("base: %02x%02x%02x%02x\n", csr_read(base, FUN0ADER),
 		csr_read(base, FUN0ADER+4), csr_read(base, FUN0ADER+8),
 		csr_read(base, FUN0ADER+12));
@@ -224,6 +225,7 @@ void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
 	pr_debug("int_enable: %02x\n", csr_read(base, 0x7ff57));
 	pr_debug("wb32: %02x\n", csr_read(base, WB_32_64));
 	pr_debug("vme_core: %02x\n", csr_read(base, 0x7c));
+	*/
 }
 
 int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
@@ -304,14 +306,16 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 {
 	struct svec_dev *svec = dev_get_drvdata(pdev);
-	int i;
+	/*int i;*/
 
 	pr_debug("%s\n", __func__);
 
-	for (i=0; i<2; i++) {
-		if (svec->fmc[i] != NULL)
-			svec_fmc_destroy(svec, i);
+	if (svec->fmcs) {
+		fmc_device_unregister_n(svec->fmcs, svec->slot_n);
+		kfree(svec->fmcs);
+		dev_info(pdev, "fmc devices unregistered\n");
 	}
+
 	unmap_window(svec, MAP_CR_CSR);
 	unmap_window(svec, MAP_REG);
 
@@ -387,11 +391,16 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->vector = vector[ndev];
 	svec->level = level[ndev];
 	svec->fw_name = fw_name[ndev];
+	svec->slot_n = 2; /* Two mezzanines */
+	svec->fmcs = NULL;
 	svec->dev = pdev;
 	svec->map[MAP_CR_CSR] = NULL;
 	svec->map[MAP_REG] = NULL;
-	svec->fmc[0] = svec->fmc[1] = NULL;
 	svec->already_reprogrammed = 0;
+
+	/* Alloc fmc structs memory */
+	svec->fmcs = kzalloc(svec->slot_n * sizeof(struct fmc_device), GFP_KERNEL);
+	if (!svec->fmcs) return -ENOMEM;
 
 	/* Map CR/CSR space */
 	error = map_window(svec, MAP_CR_CSR, VME_CR_CSR,
@@ -452,15 +461,21 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	dev_info(pdev, "A32 mapping successful at 0x%p\n",
 					svec->map[MAP_REG]->kernel_va);
 
-	/* fmc devices creation */
-	for (i=0; i<2; i++) {
-		dev_err(pdev, "Creating fmc device for mezzanine #%d...\n", i+1);
+	/* fmc structures filling */
+	for (i=0; i<svec->slot_n; i++) {
 		error = svec_fmc_create(svec, i);
 		if (error)
 			goto failed_unmap;
-		else
-			dev_info(pdev, "fmc device created for mezzanine #%d\n", i+1);
 	}
+
+	/* fmc device creation */
+	error = fmc_device_register_n(svec->fmcs, svec->slot_n);
+	if (error) {
+		dev_err(pdev, "Error registering fmc devices\n");
+		goto failed_unmap;
+	}
+	dev_info(pdev, "%d fmc devices registered\n", svec->slot_n);
+
 	return 0;
 
 failed_unmap:
@@ -468,6 +483,8 @@ failed_unmap:
 	unmap_window(svec, MAP_REG);
 
 failed:
+	kfree(svec->fmcs);
+	svec->fmcs = NULL;
 	kfree(svec);
 	return -EINVAL;
 }

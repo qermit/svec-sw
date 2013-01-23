@@ -194,15 +194,15 @@ int svec_eeprom_write(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 	return size;
 }
 
-int svec_i2c_init(struct fmc_device *fmc)
+int svec_i2c_init(struct fmc_device *fmc, unsigned int slot)
 {
-	struct svec_dev *svec = fmc->carrier_data;
 	void *buf;
 	int i, found;
 
 	found = mi2c_scan(fmc);
 	if (!found) {
 		fmc->flags |= FMC_DEVICE_NO_MEZZANINE;
+		printk(KERN_ERR "FMC_DEVICE_NO_MEZZANINE\n");
 		return 0;
 	}
 
@@ -210,13 +210,16 @@ int svec_i2c_init(struct fmc_device *fmc)
 	if (!buf)
 		return -ENOMEM;
 
-	i = svec_eeprom_read(fmc, SVEC_I2C_EEPROM_ADDR, 0, buf,
+	i = svec_eeprom_read(fmc, fmc->eeprom_addr, 0, buf,
 			     SVEC_I2C_EEPROM_SIZE);
 	if (i != SVEC_I2C_EEPROM_SIZE) {
-		dev_err(svec->dev, "EEPROM read error: retval is %i\n",
+		dev_err(fmc->hwdev, "EEPROM read error: retval is %i\n",
 			i);
 		kfree(buf);
 		return -EIO;
+	} else {
+		dev_info(fmc->hwdev, "Mezzanine %d, i2c 0x%x: EEPROM read ok\n",
+			slot + 1, fmc->eeprom_addr);
 	}
 	fmc->eeprom = buf;
 	fmc->eeprom_len = SVEC_I2C_EEPROM_SIZE;

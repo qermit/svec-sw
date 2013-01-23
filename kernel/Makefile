@@ -1,9 +1,9 @@
 
 # Assign sensible defaults, but allow overriding with environment variables.
-CPU	?:= L865
+# CPU	?:= L865
 # KVER	?= 2.6.24.7-rt27
 KVER	?= 3.2.33-rt50
-KERN_DIR?= "/acc/sys/$(CPU)/usr/src/kernels/$(KVER)"
+LINUX ?= "/acc/sys/$(CPU)/usr/src/kernels/$(KVER)"
 VME_DIR ?= "../../repo/vmebridge/driver"
 #VME_OBJDIR ?= "../../repo/vmebridge/driver/$(CPU)/$(KVER)"
 VME_OBJDIR ?= "../../repo/vmebridge/driver/"
@@ -27,4 +27,4 @@ all: modules
 .PHONY: all modules clean help install modules_install
 
 modules clean help install modules_install:
-	$(MAKE) -C $(KERN_DIR) M=$(shell pwd) CPU=$(CPU) KVER=$(KVER) $@
+	$(MAKE) -C $(LINUX) M=$(shell pwd) CPU=$(CPU) KVER=$(KVER) $@
