@@ -507,20 +507,21 @@ static int __init svec_init(void)
 	/* Device creation for the carrier, just in case... */
 	error = alloc_chrdev_region(&svec_devno, 0, lun_num, "svec");
 	if (error) {
-		printk(KERN_ERR PFX "Failed to allocate chrdev region\n");
+		pr_err("%s: Failed to allocate chrdev region\n", __func__);
 		goto out;
 	}
 
 	svec_class = class_create(THIS_MODULE, "svec");
 	if (IS_ERR(svec_class)) {
-		printk(KERN_ERR PFX "Failed to create svec class\n");
+		pr_err("%s: Failed to create svec class\n", __func__);
 		error = PTR_ERR(svec_class);
 		goto out;
 	}
 
 	error = vme_register_driver(&svec_driver, lun_num);
 	if (error) {
-		printk(KERN_ERR PFX "Cannot register vme driver - lun [%d]\n", lun_num);
+		pr_err("%s: Cannot register vme driver - lun [%d]\n", __func__,
+			lun_num);
 		class_destroy(svec_class);
 	}
 

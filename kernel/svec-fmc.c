@@ -162,8 +162,6 @@ int svec_fmc_create(struct svec_dev *svec, unsigned int n)
 	struct fmc_device *fmc = svec->fmcs + n;
 	int ret = 0;
 
-	printk(KERN_ERR "%s enters\n", __func__);
-
 	if (n<0 || n>1)
 		return -EINVAL;
 
@@ -188,8 +186,6 @@ int svec_fmc_create(struct svec_dev *svec, unsigned int n)
 		dev_err(svec->dev, "Error %d on svec i2c init", ret);
 		return ret;
 	}
-
-	printk(KERN_ERR "%s exits\n", __func__);
 
 	return ret;
 }

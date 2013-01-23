@@ -202,7 +202,6 @@ int svec_i2c_init(struct fmc_device *fmc, unsigned int slot)
 	found = mi2c_scan(fmc);
 	if (!found) {
 		fmc->flags |= FMC_DEVICE_NO_MEZZANINE;
-		printk(KERN_ERR "FMC_DEVICE_NO_MEZZANINE\n");
 		return 0;
 	}
 
