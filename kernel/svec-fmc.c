@@ -12,7 +12,6 @@
 #include <linux/fmc.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
-#include <linux/gpio.h>
 #include <linux/fmc-sdb.h>
 #include "svec.h"
 
