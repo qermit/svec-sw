@@ -344,6 +344,7 @@ int svec_load_fpga_file(struct svec_dev *svec, const char *name)
 
 	if (name == NULL) {
 		dev_err(dev, "%s. File name is NULL\n", __func__);
+		return -EINVAL;
 	}
 
 	err = request_firmware(&fw, name, dev);
