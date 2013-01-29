@@ -157,12 +157,12 @@ static struct fmc_operations svec_fmc_operations = {
 	.validate =		svec_validate,
 };
 
-int svec_fmc_create(struct svec_dev *svec, unsigned int n)
+int svec_fmc_create(struct svec_dev *svec, unsigned int slot)
 {
-	struct fmc_device *fmc = svec->fmcs + n;
+	struct fmc_device *fmc = svec->fmcs + slot;
 	int ret = 0;
 
-	if (n<0 || n>1)
+	if (slot<0 || slot>1)
 		return -EINVAL;
 
 	fmc->version = FMC_VERSION;
@@ -176,16 +176,19 @@ int svec_fmc_create(struct svec_dev *svec, unsigned int n)
 	fmc->op = &svec_fmc_operations;
 	fmc->hwdev = svec->dev; /* for messages */
 
-	fmc->slot_id = n;
-	fmc->device_id = n + 1;
-	fmc->eeprom_addr = 0x50 + 2 * n;
+	fmc->slot_id = slot;
+	fmc->device_id = 2 * (svec->vmebase1 >> 19) + slot; 
+	fmc->eeprom_addr = 0x50 + 2 * slot;
 	fmc->memlen = 0x100000;
 
-	ret = svec_i2c_init(fmc, n);
+
+	ret = svec_i2c_init(fmc, slot);
 	if (ret) {
 		dev_err(svec->dev, "Error %d on svec i2c init", ret);
 		return ret;
 	}
+
+	dev_info(svec->dev, "ready to create fmc device_id 0x%x\n", fmc->device_id);
 
 	return ret;
 }
