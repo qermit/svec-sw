@@ -53,7 +53,6 @@ MODULE_PARM_DESC(lun, "Index value for SVEC card");
 
 /* For device creation. Not really sure if it's necessary... */
 static dev_t svec_devno;
-static struct class *svec_class;
 
 static const struct file_operations svec_fops = {
 	.owner = THIS_MODULE,
@@ -510,18 +509,10 @@ static int __init svec_init(void)
 		goto out;
 	}
 
-	svec_class = class_create(THIS_MODULE, "svec");
-	if (IS_ERR(svec_class)) {
-		pr_err("%s: Failed to create svec class\n", __func__);
-		error = PTR_ERR(svec_class);
-		goto out;
-	}
-
 	error = vme_register_driver(&svec_driver, lun_num);
 	if (error) {
 		pr_err("%s: Cannot register vme driver - lun [%d]\n", __func__,
 			lun_num);
-		class_destroy(svec_class);
 	}
 
 out:
@@ -532,9 +523,7 @@ static void __exit svec_exit(void)
 {
 	pr_debug("%s\n", __func__);
 	vme_unregister_driver(&svec_driver);
-	class_destroy(svec_class);
 	unregister_chrdev_region(svec_devno, lun_num);
-	pr_debug(PFX "class_destroy\n");
 }
 
 
