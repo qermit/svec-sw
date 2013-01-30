@@ -59,57 +59,66 @@ static const struct file_operations svec_fops = {
 	.owner = THIS_MODULE,
 };
 
-int map_window( struct svec_dev *svec,
-		enum svec_map_win win,
-		enum vme_address_modifier am,
-		enum vme_data_width dw,
-		unsigned long base,
-		unsigned int size)
+int map_window( struct svec_dev *svec, enum svec_map_win map_type)
 {
 	struct device *dev = svec->dev;
+	enum vme_address_modifier am = VME_CR_CSR;
+	enum vme_data_width dw = VME_D32;
+	unsigned long base = svec->vmebase1;
+	unsigned int size = 0x80000;
 	int rval;
 
-	if (svec->map[win] != NULL) {
-		dev_err(dev, "Window %d already mapped\n", (int)win);
+	if (svec->map[map_type] != NULL) {
+		dev_err(dev, "Window %d already mapped\n", (int)map_type);
 		return -EPERM;
 	}
-	svec->map[win] = kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
-	if (!svec->map[win]) {
+
+	/* Default values are for MAP_CR_CSR */
+	/* For register map, we need to set them to: */
+	if (map_type == MAP_REG) {
+		am = VME_A32_USER_DATA_SCT;
+		dw = VME_D32;
+		base = svec->vmebase2;
+		size = 0x100000;
+	}
+
+	svec->map[map_type] = kzalloc(sizeof(struct vme_mapping), GFP_KERNEL);
+	if (!svec->map[map_type]) {
 		dev_err(dev, "Cannot allocate memory for vme_mapping struct\n");
 		return -ENOMEM;
 	}
 
 	/* Window mapping*/
-	svec->map[win]->am = 		am; /* 0x2f */
-	svec->map[win]->data_width = 	dw;
-	svec->map[win]->vme_addru =	0;
-	svec->map[win]->vme_addrl =	base;
-	svec->map[win]->sizeu =		0;
-	svec->map[win]->sizel =		size;
+	svec->map[map_type]->am = 		am; /* 0x2f */
+	svec->map[map_type]->data_width = 	dw;
+	svec->map[map_type]->vme_addru =	0;
+	svec->map[map_type]->vme_addrl =	base;
+	svec->map[map_type]->sizeu =		0;
+	svec->map[map_type]->sizel =		size;
 
-	if (( rval = vme_find_mapping(svec->map[win], 1)) != 0) {
-		dev_err(dev, "Failed to map window %d: (%d)\n", (int)win, rval);
+	if (( rval = vme_find_mapping(svec->map[map_type], 1)) != 0) {
+		dev_err(dev, "Failed to map window %d: (%d)\n", (int)map_type, rval);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-int unmap_window(struct svec_dev *svec, enum svec_map_win win)
+int unmap_window(struct svec_dev *svec, enum svec_map_win map_type)
 {
 	struct device *dev = svec->dev;
 
-	if (svec->map[win] == NULL) {
-		dev_err(dev, "Window %d not mapped. Cannot unmap\n", (int)win);
+	if (svec->map[map_type] == NULL) {
+		dev_err(dev, "Window %d not mapped. Cannot unmap\n", (int)map_type);
 		return -EINVAL;
 	}
-	if (vme_release_mapping(svec->map[win], 1)) {
-		dev_err(dev, "Unmap for window %d failed\n", (int)win);
+	if (vme_release_mapping(svec->map[map_type], 1)) {
+		dev_err(dev, "Unmap for window %d failed\n", (int)map_type);
 		return -EINVAL;
 	}
-	dev_info(dev, "Window %d unmaped\n", (int)win);
-	kfree(svec->map[win]);
-	svec->map[win] = NULL;
+	dev_info(dev, "Window %d unmaped\n", (int)map_type);
+	kfree(svec->map[map_type]);
+	svec->map[map_type] = NULL;
 	return 0;
 }
 
@@ -398,8 +407,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	if (!svec->fmcs) return -ENOMEM;
 
 	/* Map CR/CSR space */
-	error = map_window(svec, MAP_CR_CSR, VME_CR_CSR,
-				VME_D32, svec->vmebase1, 0x80000);
+	error = map_window(svec, MAP_CR_CSR);
 	if (error) {
 		dev_err(pdev, "Error mapping CR/CSR space\n");
 		goto failed;
@@ -447,8 +455,8 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 				vector[ndev], level[ndev]);
 
 	/* Map A32 space */
-	error = map_window(svec, MAP_REG, VME_A32_USER_DATA_SCT,
-				VME_D32, svec->vmebase2, 0x100000);
+	error = map_window(svec, MAP_REG);
+
 	if (error) {
 		dev_err(pdev, "error mapping CR/CSR space\n");
 		goto failed;

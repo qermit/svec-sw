@@ -65,10 +65,9 @@ extern int svec_bootloader_unlock (struct svec_dev *svec);
 extern int svec_load_fpga(struct svec_dev *svec, const void *data, int size);
 extern int svec_load_fpga_file(struct svec_dev *svec, const char *name);
 extern void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level);
-extern int unmap_window(struct svec_dev *svec, enum svec_map_win win);
-extern int map_window( struct svec_dev *svec, enum svec_map_win win,
-			enum vme_address_modifier am, enum vme_data_width dw,
-			unsigned long base, unsigned int size);
+extern int unmap_window(struct svec_dev *svec, enum svec_map_win map_type);
+extern int map_window( struct svec_dev *svec, enum svec_map_win map_type);
+
 extern char *svec_fw_name;
 extern int spec_use_msi;
 
