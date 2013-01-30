@@ -22,7 +22,7 @@ static ssize_t svec_show_bootloader_active(struct device *pdev,
 
 	active = svec_bootloader_is_active(card);
 	if (active < 0)
-		return -EINVAL;
+		return active;
 
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", active);
 
@@ -51,7 +51,7 @@ static ssize_t svec_show_firmware_name(struct device *pdev,
 
 	bl_active = svec_bootloader_is_active(card);
 	if (bl_active < 0)
-		return -EINVAL;
+		return bl_active;
 
 	if (bl_active)
 		ret = snprintf(buf, PAGE_SIZE, "%s (not active)\n", card->fw_name);
