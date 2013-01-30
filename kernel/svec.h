@@ -72,7 +72,8 @@ extern char *svec_fw_name;
 extern int spec_use_msi;
 
 /* Functions in svec-fmc.c, used by svec-vme.c */
-extern int svec_fmc_create(struct svec_dev *svec, unsigned int n);
+extern int svec_fmc_create(struct svec_dev *svec);
+extern void svec_fmc_destroy(struct svec_dev *svec);
 extern void svec_fmc_check(struct svec_dev *svec, unsigned int n);
 
 /* Functions in svec-i2c.c, used by svec-fmc.c */

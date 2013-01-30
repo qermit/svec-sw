@@ -308,15 +308,8 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 {
 	struct svec_dev *svec = dev_get_drvdata(pdev);
-	/*int i;*/
 
-	pr_debug("%s\n", __func__);
-
-	if (svec->fmcs) {
-		fmc_device_unregister_n(svec->fmcs, svec->slot_n);
-		kfree(svec->fmcs);
-		dev_info(pdev, "fmc devices unregistered\n");
-	}
+	svec_fmc_destroy(svec);
 
 	unmap_window(svec, MAP_CR_CSR);
 	unmap_window(svec, MAP_REG);
@@ -370,7 +363,6 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	struct svec_dev *svec;
 	const char *name;
 	dev_t devno;
-	int i;
 	int error = 0;
 
 	pr_debug("Probe for device %02d\n", ndev);
@@ -394,7 +386,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->vector = vector[ndev];
 	svec->level = level[ndev];
 	svec->fw_name = fw_name[ndev];
-	svec->slot_n = 2; /* Two mezzanines */
+	svec->slot_n = 2; /* FIXME: Two mezzanines */
 	svec->dev = pdev;
 
 	/* Alloc fmc structs memory */
@@ -459,20 +451,11 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	dev_info(pdev, "A32 mapping successful at 0x%p\n",
 					svec->map[MAP_REG]->kernel_va);
 
-	/* fmc structures filling */
-	for (i=0; i<svec->slot_n; i++) {
-		error = svec_fmc_create(svec, i);
-		if (error)
-			goto failed_unmap;
-	}
-
-	/* fmc device creation */
-	error = fmc_device_register_n(svec->fmcs, svec->slot_n);
+	error = svec_fmc_create(svec);
 	if (error) {
-		dev_err(pdev, "Error registering fmc devices\n");
+		dev_err(pdev, "error creating fmc devices\n");
 		goto failed_unmap;
 	}
-	dev_info(pdev, "%d fmc devices registered\n", svec->slot_n);
 
 	return 0;
 

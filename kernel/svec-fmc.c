@@ -85,8 +85,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 
 	/* Map A32 space */
 	if (svec->map[MAP_REG] == NULL)
-		map_window(svec, MAP_REG, VME_A32_USER_DATA_SCT,
-				VME_D32, svec->vmebase2, 0x100000);
+		map_window(svec, MAP_REG);
 
 	svec->already_reprogrammed = 1;
 out:
@@ -157,7 +156,7 @@ static struct fmc_operations svec_fmc_operations = {
 	.validate =		svec_validate,
 };
 
-int svec_fmc_create(struct svec_dev *svec, unsigned int slot)
+int svec_fmc_prepare(struct svec_dev *svec, unsigned int slot)
 {
 	struct fmc_device *fmc = svec->fmcs + slot;
 	int ret = 0;
@@ -191,4 +190,39 @@ int svec_fmc_create(struct svec_dev *svec, unsigned int slot)
 	dev_info(svec->dev, "ready to create fmc device_id 0x%x\n", fmc->device_id);
 
 	return ret;
+}
+
+int svec_fmc_create(struct svec_dev *svec)
+{
+	int i;
+	int error = 0;
+
+	/* fmc structures filling */
+	for (i=0; i < svec->slot_n; i++) {
+		error = svec_fmc_prepare(svec, i);
+		if (error)
+			goto failed;
+	}
+
+	/* fmc device creation */
+	error = fmc_device_register_n(svec->fmcs, svec->slot_n);
+	if (error) {
+		dev_err(svec->dev, "Error registering fmc devices\n");
+		goto failed;
+	}
+	dev_info(svec->dev, "%d fmc devices registered\n", svec->slot_n);
+
+failed:
+	return error;
+
+}
+
+void svec_fmc_destroy(struct svec_dev *svec)
+{
+	if (svec->fmcs) {
+		fmc_device_unregister_n(svec->fmcs, svec->slot_n);
+		kfree(svec->fmcs);
+		dev_info(svec->dev, "%d fmc devices unregistered\n",
+						svec->slot_n);
+	}
 }
