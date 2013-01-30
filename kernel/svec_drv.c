@@ -227,6 +227,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	int xldr_fifo_r0;  /* Bitstream data input control register */
 	int xldr_fifo_r1;  /* Bitstream data input register */
 	int i;
+	unsigned long j;
 	int err = 0;
 
 	/* Check if we have something to do... */
@@ -273,20 +274,25 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 		}
 	}
 
-	while(1)
-	{
-		rval = be32_to_cpu(ioread32(loader_addr + XLDR_REG_CSR));
-		if(rval & XLDR_CSR_DONE) {
-			err = rval & XLDR_CSR_ERROR ? -EINVAL : 0;
-			dev_err(dev, "Bitstream loaded, status: %s\n",
-				(err < 0 ? "ERROR" : "OK"));
-
-			/* give the VME bus control to App FPGA */
-			pr_debug("giving up control to app FPGA\n");
-			iowrite32(cpu_to_be32(XLDR_CSR_EXIT), loader_addr + XLDR_REG_CSR);
-			break;
+	/* Two seconds later */
+	j = jiffies + 2 * HZ;
+	do {
+		if (time_after(jiffies, j)) {
+			dev_err(dev, "error: FPGA program timeout.\n");
+			return -EIO;
 		}
+		rval = be32_to_cpu(ioread32(loader_addr + XLDR_REG_CSR));
+	} while (!(rval & XLDR_CSR_DONE));
+
+	if (rval & XLDR_CSR_ERROR) {
+		dev_err(dev, "Bitstream loaded, status ERROR\n");
+		return -EINVAL;
 	}
+
+	dev_info(dev, "Bitstream loaded, status: OK\n");
+
+	/* give the VME bus control to App FPGA */
+	iowrite32(cpu_to_be32(XLDR_CSR_EXIT), loader_addr + XLDR_REG_CSR);
 
 	return err;
 }
