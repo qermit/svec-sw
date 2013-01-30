@@ -396,11 +396,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->level = level[ndev];
 	svec->fw_name = fw_name[ndev];
 	svec->slot_n = 2; /* Two mezzanines */
-	svec->fmcs = NULL;
 	svec->dev = pdev;
-	svec->map[MAP_CR_CSR] = NULL;
-	svec->map[MAP_REG] = NULL;
-	svec->already_reprogrammed = 0;
 
 	/* Alloc fmc structs memory */
 	svec->fmcs = kzalloc(svec->slot_n * sizeof(struct fmc_device), GFP_KERNEL);
