@@ -83,10 +83,6 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, svec->vmebase2,
 				svec->vector, svec->level);
 
-	/* Map A32 space */
-	if (svec->map[MAP_REG] == NULL)
-		map_window(svec, MAP_REG);
-
 	svec->already_reprogrammed = 1;
 out:
 	release_firmware(fw);
