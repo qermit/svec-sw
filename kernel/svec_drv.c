@@ -174,16 +174,6 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 	return 0;
 }
 
-static u8 csr_read(void *base, u32 offset)
-{
-	char *p = base;
-	u8 value;
-
-	offset -= offset % 4;
-	value = ioread32be(p + offset);
-	return value;
-}
-
 static void csr_write(u8 value, void *base, u32 offset)
 {
 	offset -= offset % 4;
