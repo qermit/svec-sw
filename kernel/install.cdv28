@@ -1,22 +1,17 @@
-#!/bin/sh
-echo Installing svec WIP driver...
+#!/bin/bash
+
+#FDELAY="fmc/svec-fine-delay-20121218-1549.bin"
+GOLDEN="fmc/golden-svec-20130114-1000.bin"
+FDELAY="fmc/svec_top.bin"
 echo 8 > /proc/sys/kernel/printk
 
-FDELAY="fmc/svec-fine-delay-20121126-1326.bin"
-GOLDEN="fmc/golden-svec-20121017-1816.bin"
-TEST00="fmc/bus_test.bin"
+echo Installing zio and fmc drivers ...
+/sbin/insmod zio.ko && /sbin/insmod fmc.ko 
+#dump_sdb=3
 
-# /sbin/insmod svec.ko lun=0,1 vmebase1=0x600000,0x900000 vmebase2=0x6000,0x600000 vector=0x86,0x87 level=2,2 fw_name=$GOLDEN,$GOLDEN
+echo Installing fine delay driver...
+/sbin/insmod fmc-fine-delay.ko gateware=$FDELAY timer_ms=10
 
-/sbin/insmod svec.ko lun=0 vmebase1=0x600000 vmebase2=0xa0000000 vector=0x86 level=2 fw_name=$TEST00
-
-MAJOR=`cat /proc/devices | awk '{if ($2 == "svec") printf $1}'`
-echo Making nodes for ${MODULE} major device svec ${MAJOR}
-if [ -z "$MAJOR" ]; then
-     echo "driver SVEC not installed !"
-     exit 2
-fi
-
-rm -f /dev/svec.*
-#/bin/mknod  -m 0666 /dev/svec.0 c ${MAJOR} 0
-
+echo Installing SVEC driver...
+#/sbin/insmod svec.ko lun=0 vmebase1=0x600000 vmebase2=0xa0000000 vector=0x86 level=2 fw_name=$GOLDEN
+/sbin/insmod svec.ko lun=0,1 vmebase1=0x900000,0x600000 vmebase2=0xa0000000,0xb0000000 vector=0x86,0x85 level=2,2 fw_name=$FDELAY,$FDELAY
