@@ -238,12 +238,6 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 		return -EINVAL;
 	}
 
-	/* Check if CS/CSR window is mapped */
-	if (svec->map[MAP_CR_CSR] == NULL) {
-		dev_err(dev, "CS/CSR window not found\n");
-		return -EINVAL;
-	}
-
 	/* Unlock (activate) bootloader */
 	if (svec_bootloader_unlock(svec)) {
 		dev_err(dev, "Bootloader unlock failed\n");
@@ -450,7 +444,7 @@ failed:
 	kfree(svec->fmcs);
 	svec->fmcs = NULL;
 	kfree(svec);
-	return -EINVAL;
+	return error;
 }
 
 static struct vme_driver svec_driver = {
