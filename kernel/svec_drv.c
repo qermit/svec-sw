@@ -365,8 +365,6 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	dev_t devno;
 	int error = 0;
 
-	pr_debug("Probe for device %02d\n", ndev);
-
 	if (lun[ndev] >= SVEC_MAX_DEVICES) {
 		dev_err(pdev, "Card lun %d out of range [0..%d]\n",
 			lun[ndev], SVEC_MAX_DEVICES -1);
@@ -399,7 +397,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		dev_err(pdev, "Error mapping CR/CSR space\n");
 		goto failed;
 	}
-	pr_debug("CR/CSR mapping successful at 0x%p\n",
+	dev_info(pdev, "CR/CSR mapping successful at 0x%p\n",
 				svec->map[MAP_CR_CSR]->kernel_va);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
@@ -445,7 +443,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	error = map_window(svec, MAP_REG);
 
 	if (error) {
-		dev_err(pdev, "error mapping CR/CSR space\n");
+		dev_err(pdev, "error mapping register space\n");
 		goto failed;
 	}
 	dev_info(pdev, "A32 mapping successful at 0x%p\n",
@@ -504,7 +502,6 @@ out:
 
 static void __exit svec_exit(void)
 {
-	pr_debug("%s\n", __func__);
 	vme_unregister_driver(&svec_driver);
 	unregister_chrdev_region(svec_devno, lun_num);
 }
