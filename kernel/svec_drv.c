@@ -58,7 +58,7 @@ static const struct file_operations svec_fops = {
 	.owner = THIS_MODULE,
 };
 
-int map_window( struct svec_dev *svec, enum svec_map_win map_type)
+int svec_map_window( struct svec_dev *svec, enum svec_map_win map_type)
 {
 	struct device *dev = svec->dev;
 	enum vme_address_modifier am = VME_CR_CSR;
@@ -107,7 +107,7 @@ int map_window( struct svec_dev *svec, enum svec_map_win map_type)
 	return 0;
 }
 
-int unmap_window(struct svec_dev *svec, enum svec_map_win map_type)
+int svec_unmap_window(struct svec_dev *svec, enum svec_map_win map_type)
 {
 	struct device *dev = svec->dev;
 
@@ -178,29 +178,29 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 	return 0;
 }
 
-static void csr_write(u8 value, void *base, u32 offset)
+static void svec_csr_write(u8 value, void *base, u32 offset)
 {
 	offset -= offset % 4;
 	iowrite32be(value, base + offset);
 }
 
-void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
+void svec_setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
 {
 	u8 fa[4];		/* FUN0 ADER contents */
 
 	/* reset the core */
-	csr_write(RESET_CORE, base, BIT_SET_REG);
+	svec_csr_write(RESET_CORE, base, BIT_SET_REG);
 	msleep(10);
 
 	/* disable the core */
-	csr_write(ENABLE_CORE, base, BIT_CLR_REG);
+	svec_csr_write(ENABLE_CORE, base, BIT_CLR_REG);
 
 	/* default to 32bit WB interface */
-	csr_write(WB32, base, WB_32_64);
+	svec_csr_write(WB32, base, WB_32_64);
 
 	/* set interrupt vector and level */
-	csr_write(vector, base, INTVECTOR);
-	csr_write(level, base, INT_LEVEL);
+	svec_csr_write(vector, base, INTVECTOR);
+	svec_csr_write(level, base, INT_LEVEL);
 
 	/* do address relocation for FUN0 */
 	fa[0] = (vme >> 24) & 0xFF;
@@ -209,13 +209,13 @@ void setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
 	fa[3] = (VME_A32_USER_DATA_SCT & 0x3F) << 2;
 			/* DFSR and XAM are zero */
 
-	csr_write(fa[0], base, FUN0ADER);
-	csr_write(fa[1], base, FUN0ADER + 4);
-	csr_write(fa[2], base, FUN0ADER + 8);
-	csr_write(fa[3], base, FUN0ADER + 12);
+	svec_csr_write(fa[0], base, FUN0ADER);
+	svec_csr_write(fa[1], base, FUN0ADER + 4);
+	svec_csr_write(fa[2], base, FUN0ADER + 8);
+	svec_csr_write(fa[3], base, FUN0ADER + 12);
 
 	/* enable module, hence make FUN0 available */
-	csr_write(ENABLE_CORE, base, BIT_SET_REG);
+	svec_csr_write(ENABLE_CORE, base, BIT_SET_REG);
 }
 
 int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
@@ -305,8 +305,8 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 
 	svec_fmc_destroy(svec);
 
-	unmap_window(svec, MAP_CR_CSR);
-	unmap_window(svec, MAP_REG);
+	svec_unmap_window(svec, MAP_CR_CSR);
+	svec_unmap_window(svec, MAP_REG);
 
 	return 0;
 }
@@ -386,7 +386,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	if (!svec->fmcs) return -ENOMEM;
 
 	/* Map CR/CSR space */
-	error = map_window(svec, MAP_CR_CSR);
+	error = svec_map_window(svec, MAP_CR_CSR);
 	if (error) 
 		goto failed;
 
@@ -426,11 +426,11 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		goto failed;
 
 	/* configure and activate function 0 */
-	setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, vmebase2[ndev],
+	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, vmebase2[ndev],
 				vector[ndev], level[ndev]);
 
 	/* Map A32 space */
-	error = map_window(svec, MAP_REG);
+	error = svec_map_window(svec, MAP_REG);
 	if (error) 
 		goto failed;
 
@@ -443,8 +443,8 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	return 0;
 
 failed_unmap:
-	unmap_window(svec, MAP_CR_CSR);
-	unmap_window(svec, MAP_REG);
+	svec_unmap_window(svec, MAP_CR_CSR);
+	svec_unmap_window(svec, MAP_REG);
 
 failed:
 	kfree(svec->fmcs);
