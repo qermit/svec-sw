@@ -100,6 +100,10 @@ int map_window( struct svec_dev *svec, enum svec_map_win map_type)
 		return -EINVAL;
 	}
 
+	dev_info(dev, "%s mapping successful at 0x%p\n",
+			map_type == MAP_REG ? "register" : "CR/CSR",
+			svec->map[map_type]->kernel_va);
+
 	return 0;
 }
 
@@ -383,12 +387,8 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 
 	/* Map CR/CSR space */
 	error = map_window(svec, MAP_CR_CSR);
-	if (error) {
-		dev_err(pdev, "Error mapping CR/CSR space\n");
+	if (error) 
 		goto failed;
-	}
-	dev_info(pdev, "CR/CSR mapping successful at 0x%p\n",
-				svec->map[MAP_CR_CSR]->kernel_va);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 	name = pdev->bus_id;
@@ -431,13 +431,8 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 
 	/* Map A32 space */
 	error = map_window(svec, MAP_REG);
-
-	if (error) {
-		dev_err(pdev, "error mapping register space\n");
+	if (error) 
 		goto failed;
-	}
-	dev_info(pdev, "A32 mapping successful at 0x%p\n",
-					svec->map[MAP_REG]->kernel_va);
 
 	error = svec_fmc_create(svec);
 	if (error) {
