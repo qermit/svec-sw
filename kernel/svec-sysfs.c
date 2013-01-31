@@ -54,7 +54,8 @@ static ssize_t svec_show_firmware_name(struct device *pdev,
 		return bl_active;
 
 	if (bl_active)
-		ret = snprintf(buf, PAGE_SIZE, "%s (not active)\n", card->fw_name);
+		ret = snprintf(buf, PAGE_SIZE, "%s (not active)\n",
+				card->fw_name);
 	else
 		ret = snprintf(buf, PAGE_SIZE, "%s\n", card->fw_name);
 

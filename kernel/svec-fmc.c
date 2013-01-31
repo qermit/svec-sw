@@ -172,18 +172,19 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int slot)
 	fmc->hwdev = svec->dev; /* for messages */
 
 	fmc->slot_id = slot;
-	fmc->device_id = 2 * (svec->vmebase1 >> 19) + slot; 
-	fmc->eeprom_addr = 0x50 + 2 * slot;
-	fmc->memlen = 0x100000;
+		fmc->device_id = 2 * (svec->vmebase1 >> 19) + slot;
+		fmc->eeprom_addr = 0x50 + 2 * slot;
+		fmc->memlen = 0x100000;
 
 
-	ret = svec_i2c_init(fmc, slot);
-	if (ret) {
-		dev_err(svec->dev, "Error %d on svec i2c init", ret);
-		return ret;
-	}
+		ret = svec_i2c_init(fmc, slot);
+		if (ret) {
+			dev_err(svec->dev, "Error %d on svec i2c init", ret);
+			return ret;
+		}
 
-	dev_info(svec->dev, "ready to create fmc device_id 0x%x\n", fmc->device_id);
+	dev_info(svec->dev, "ready to create fmc device_id 0x%x\n",
+			fmc->device_id);
 
 	return ret;
 }

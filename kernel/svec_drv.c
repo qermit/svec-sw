@@ -19,11 +19,9 @@
 #define PFX		DRIVER_NAME ": "
 #define BASE_LOADER	0x70000
 
-/* Module parameters */
 char *svec_fw_name = "fmc/svec-init.bin";
-/*
-module_param_named(fw_name, svec_fw_name, charp, 0444);
-*/
+
+/* Module parameters */
 static long vmebase1[SVEC_MAX_DEVICES];
 static unsigned int vmebase1_num;
 static long vmebase2[SVEC_MAX_DEVICES];
@@ -58,7 +56,7 @@ static const struct file_operations svec_fops = {
 	.owner = THIS_MODULE,
 };
 
-int svec_map_window( struct svec_dev *svec, enum svec_map_win map_type)
+int svec_map_window(struct svec_dev *svec, enum svec_map_win map_type)
 {
 	struct device *dev = svec->dev;
 	enum vme_address_modifier am = VME_CR_CSR;
@@ -88,15 +86,16 @@ int svec_map_window( struct svec_dev *svec, enum svec_map_win map_type)
 	}
 
 	/* Window mapping*/
-	svec->map[map_type]->am = 		am; /* 0x2f */
-	svec->map[map_type]->data_width = 	dw;
+	svec->map[map_type]->am =		am; /* 0x2f */
+	svec->map[map_type]->data_width =	dw;
 	svec->map[map_type]->vme_addru =	0;
 	svec->map[map_type]->vme_addrl =	base;
 	svec->map[map_type]->sizeu =		0;
 	svec->map[map_type]->sizel =		size;
 
 	if (( rval = vme_find_mapping(svec->map[map_type], 1)) != 0) {
-		dev_err(dev, "Failed to map window %d: (%d)\n", (int)map_type, rval);
+		dev_err(dev, "Failed to map window %d: (%d)\n",
+				(int)map_type, rval);
 		return -EINVAL;
 	}
 
@@ -112,7 +111,8 @@ int svec_unmap_window(struct svec_dev *svec, enum svec_map_win map_type)
 	struct device *dev = svec->dev;
 
 	if (svec->map[map_type] == NULL) {
-		dev_err(dev, "Window %d not mapped. Cannot unmap\n", (int)map_type);
+		dev_err(dev, "Window %d not mapped. Cannot unmap\n",
+				(int)map_type);
 		return -EINVAL;
 	}
 	if (vme_release_mapping(svec->map[map_type], 1)) {
@@ -125,10 +125,11 @@ int svec_unmap_window(struct svec_dev *svec, enum svec_map_win map_type)
 	return 0;
 }
 
-int svec_bootloader_unlock (struct svec_dev *svec)
+int svec_bootloader_unlock(struct svec_dev *svec)
 {
 	struct device *dev = svec->dev;
-	const uint32_t boot_seq[8] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
+	const uint32_t boot_seq[8] = {	0xde, 0xad, 0xbe, 0xef,
+					0xca, 0xfe, 0xba, 0xbe};
 	void *addr;
 	int i;
 
@@ -254,18 +255,22 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	loader_addr = svec->map[MAP_CR_CSR]->kernel_va + BASE_LOADER;
 
 	iowrite32(cpu_to_be32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR);
-	iowrite32(cpu_to_be32(XLDR_CSR_START | XLDR_CSR_MSBF), loader_addr + XLDR_REG_CSR);
+	iowrite32(cpu_to_be32(XLDR_CSR_START | XLDR_CSR_MSBF),
+				loader_addr + XLDR_REG_CSR);
 
 	i = 0;
 	while(i < size) {
 		rval = be32_to_cpu(ioread32(loader_addr + XLDR_REG_FIFO_CSR));
 		if (!(rval & XLDR_FIFO_CSR_FULL)) {
 			n = (size-i>4?4:size-i);
-			xldr_fifo_r0 = (n - 1) | ((n<4) ? XLDR_FIFO_R0_XLAST : 0);
+			xldr_fifo_r0 = (n - 1) |
+					((n<4) ? XLDR_FIFO_R0_XLAST : 0);
 			xldr_fifo_r1 = htonl(data[i>>2]);
 
-			iowrite32(cpu_to_be32(xldr_fifo_r0), loader_addr + XLDR_REG_FIFO_R0);
-			iowrite32(cpu_to_be32(xldr_fifo_r1), loader_addr + XLDR_REG_FIFO_R1);
+			iowrite32(cpu_to_be32(xldr_fifo_r0),
+					loader_addr + XLDR_REG_FIFO_R0);
+			iowrite32(cpu_to_be32(xldr_fifo_r1),
+					loader_addr + XLDR_REG_FIFO_R1);
 			i+=n;
 		}
 	}
@@ -376,12 +381,13 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->dev = pdev;
 
 	/* Alloc fmc structs memory */
-	svec->fmcs = kzalloc(svec->slot_n * sizeof(struct fmc_device), GFP_KERNEL);
+	svec->fmcs = kzalloc(svec->slot_n * sizeof(struct fmc_device),
+				GFP_KERNEL);
 	if (!svec->fmcs) return -ENOMEM;
 
 	/* Map CR/CSR space */
 	error = svec_map_window(svec, MAP_CR_CSR);
-	if (error) 
+	if (error)
 		goto failed;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
@@ -425,7 +431,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 
 	/* Map A32 space */
 	error = svec_map_window(svec, MAP_REG);
-	if (error) 
+	if (error)
 		goto failed;
 
 	error = svec_fmc_create(svec);
