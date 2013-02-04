@@ -37,3 +37,6 @@ INSMOD_ARGS=`awk -f ./svec.awk FMC-SVEC $TRANSFER |
 	sed 's!\$GOLDEN!'$GOLDEN'!g'`
 echo "svec: insmod with $INSMOD_ARGS"
 /sbin/insmod svec.ko $INSMOD_ARGS
+
+echo "$DRIVER_NAME: making device nodes"
+awk -f ./svec-fd-luns.awk $DEVICE_NAME $TRANSFER | sh
