@@ -39,4 +39,4 @@ echo "svec: insmod with $INSMOD_ARGS"
 /sbin/insmod svec.ko $INSMOD_ARGS
 
 echo "$DRIVER_NAME: making device nodes"
-awk -f ./svec-fd-luns.awk $DEVICE_NAME $TRANSFER | sh
+awk -f ./fd-luns.awk $DEVICE_NAME $TRANSFER | sh
