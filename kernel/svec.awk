@@ -25,7 +25,7 @@ BEGIN {
 	lun = lun "," $7
 	slot =  slot "," $20
 	csr_base_addr = sprintf("%s,0x%x", csr_base_addr, $20 * 0x80000)
-	a32_base_addr = a32_base_addr "," $11
+	a32_base_addr = sprintf("%s,0x%x", a32_base_addr, $11)
 	vector = vector "," $23
 }
 

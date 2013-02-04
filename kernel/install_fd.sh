@@ -33,6 +33,6 @@ echo Installing zio and fmc drivers ...
 echo Installing fine delay driver...
 /sbin/insmod $DRIVER_NAME.ko gateware=$FDELAY timer_ms=10
 
-INSMOD_ARGS="`awk -f ./svec.awk FMC-SVEC $TRANSFER` level=2 fw_name=$GOLDEN
+INSMOD_ARGS="`awk -f ./svec.awk FMC-SVEC $TRANSFER` level=2 fw_name=$GOLDEN"
 echo -n "svec: insmod with $INSMOD_ARGS"
 /sbin/insmod svec.ko $INSMOD_ARGS
