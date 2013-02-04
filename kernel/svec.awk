@@ -25,8 +25,10 @@ BEGIN {
 	lun = lun "," $7
 	slot =  slot "," $20
 	csr_base_addr = sprintf("%s,0x%x", csr_base_addr, $20 * 0x80000)
-	a32_base_addr = sprintf("%s,0x%x", a32_base_addr, $11)
+	a32_base_addr = sprintf("%s,0x%s", a32_base_addr, $11)
 	vector = vector "," $23
+	level = level ",2"		# hack: always level 2
+	fw_name = fw_name ",$GOLDEN"	# hack: always golden bitstream
 }
 
 END {
@@ -41,6 +43,11 @@ END {
 		insmod_params = insmod_params " vmebase2=" substr(a32_base_addr, 2)
 	if (vector)
 		insmod_params = insmod_params " vector=" substr(vector, 2)
+	if (level)
+		insmod_params = insmod_params " level=" substr(level, 2)
+	if (fw_name)
+		insmod_params = insmod_params " fw_name=" substr(fw_name, 2)
+
 	print substr(insmod_params, 3)
 }
 
