@@ -18,6 +18,8 @@
 
 #define SVEC_MAX_DEVICES        32
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
+#define SVEC_IRQ_LEVEL	2
+#define SVEC_BASE_LOADER	0x70000
 
 /* The eeprom is at address 0x50 */
 /* FIXME ? Copied from spec.h */

@@ -17,9 +17,8 @@
 
 #define DRIVER_NAME	"svec"
 #define PFX		DRIVER_NAME ": "
-#define BASE_LOADER	0x70000
 
-char *svec_fw_name = "fmc/svec-init.bin";
+char *svec_fw_name = "fmc/svec_golden.bin";
 
 /* Module parameters */
 static long vmebase1[SVEC_MAX_DEVICES];
@@ -139,7 +138,8 @@ int svec_bootloader_unlock(struct svec_dev *svec)
 		return -EINVAL;
 	}
 
-	addr = svec->map[MAP_CR_CSR]->kernel_va + BASE_LOADER + XLDR_REG_BTRIGR;
+	addr = svec->map[MAP_CR_CSR]->kernel_va +
+				SVEC_BASE_LOADER + XLDR_REG_BTRIGR;
 
 	/* Magic sequence: unlock bootloader mode, disable application FPGA */
 	for (i=0; i<8; i++)
@@ -163,7 +163,8 @@ int svec_bootloader_is_active(struct svec_dev *svec)
 		return -EINVAL;
 	}
 
-	addr = svec->map[MAP_CR_CSR]->kernel_va + BASE_LOADER + XLDR_REG_IDR;
+	addr = svec->map[MAP_CR_CSR]->kernel_va +
+					SVEC_BASE_LOADER + XLDR_REG_IDR;
 
 	idc = be32_to_cpu(ioread32(addr));
 	idc = htonl(idc);
@@ -252,7 +253,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	}
 
 	/* FPGA loader virtual address */
-	loader_addr = svec->map[MAP_CR_CSR]->kernel_va + BASE_LOADER;
+	loader_addr = svec->map[MAP_CR_CSR]->kernel_va + SVEC_BASE_LOADER;
 
 	iowrite32(cpu_to_be32(XLDR_CSR_SWRST), loader_addr + XLDR_REG_CSR);
 	iowrite32(cpu_to_be32(XLDR_CSR_START | XLDR_CSR_MSBF),
@@ -317,8 +318,8 @@ static int __devinit svec_match(struct device *pdev, unsigned int ndev)
 	if (ndev >= vmebase1_num)
 		 return 0;
 	if (ndev >= vector_num || ndev >= level_num) {
-		 dev_warn(pdev, "irq vector/level missing\n");
-		 return 0;
+		dev_warn(pdev, "irq vector/level missing\n");
+		return 0;
 	}
 
 	return 1;
