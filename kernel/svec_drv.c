@@ -1,10 +1,12 @@
-/**
-* svec_drv.c
-* Driver for SVEC carrier.
+/*
+* Copyright (C) 2012-2013 CERN (www.cern.ch)
+* Author: Juan David Gonzalez Cobas <dcobas@cern.ch>
+* Author: Luis Fernando Ruiz Gago <lfruiz@cern.ch>
 *
-* Released under GPL v2. (and only v2, not any later version)
+* Released according to the GNU GPL, version 2 or any later version
+*
+* Driver for SVEC (Simple VME FMC carrier) board.
 */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>

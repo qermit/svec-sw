@@ -1,13 +1,12 @@
 /*
- * Copyright (C) 2010-2012 CERN (www.cern.ch)
- * Author: Juan David Gonzalez Cobas
- * Author: Luis Fernando Ruiz Gago
- *
- * Released according to the GNU GPL, version 2 or any later version.
- *
- * This work is part of the White Rabbit project, a research effort led
- * by CERN, the European Institute for Nuclear Research.
- */
+* Copyright (C) 2012-2013 CERN (www.cern.ch)
+* Author: Juan David Gonzalez Cobas <dcobas@cern.ch>
+* Author: Luis Fernando Ruiz Gago <lfruiz@cern.ch>
+*
+* Released according to the GNU GPL, version 2 or any later version
+*
+* Driver for SVEC (Simple VME FMC carrier) board.
+*/
 #ifndef __SVEC_H__
 #define __SVEC_H__
 
