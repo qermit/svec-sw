@@ -4,8 +4,11 @@ KVER	?= 2.6.24.7-rt27
 KVER	?= 3.2.33-rt50
 LINUX ?= "/acc/sys/$(CPU)/usr/src/kernels/$(KVER)"
 
-ccflags-y += -I $(M)/../include
-ccflags-y += -I $(M)/fmc-bus/kernel/include
+FMC_DRV ?= $(shell ../check-fmc-bus)
+export FMC_DRV
+
+ccflags-y += -I$(FMC_DRV)/include
+ccflags-y += -I/acc/dsc/src/drivers/coht/vmebridge/include
 ccflags-y += -DDEBUG
 
 KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.vme

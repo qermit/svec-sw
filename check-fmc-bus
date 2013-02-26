@@ -1,0 +1,27 @@
+#!/bin/sh
+
+cd $(dirname $0)
+
+# If this project _and_ fmc-bus are submodules of ../, pick ../fmc-bus
+
+FMC_SUBDIR=$(/bin/pwd)/fmc-bus/kernel
+FMC_DOTDOT=$(/bin/pwd)/../fmc-bus/kernel
+
+THIS=$(basename $(/bin/pwd))
+
+if ! test -f ../.gitmodules; then
+    echo $FMC_SUBDIR
+    exit 0
+fi
+
+if ! grep "submodule \"$THIS\"" ../.gitmodules > /dev/null; then
+    echo $FMC_SUBDIR
+    exit 0
+fi
+
+if ! grep "submodule \"fmc-bus\"" ../.gitmodules > /dev/null; then
+    echo $FMC_SUBDIR
+    exit 0
+fi
+
+echo $FMC_DOTDOT
