@@ -1,0 +1,223 @@
+\input texinfo    @c -*-texinfo-*-
+%
+% spec-sw.in - main file for the documentation
+%
+%%%%
+
+%------------------------------------------------------------------------------
+%
+%                         NOTE FOR THE UNAWARE USER
+%                         =========================
+%
+%    This file is a texinfo source. It isn't the binary file of some strange
+%    editor of mine. If you want ASCII, you should "make spec-sw.txt".
+%
+%------------------------------------------------------------------------------
+
+%
+% This is not a conventional info file...
+% I use three extra features:
+%   - The '%' as a comment marker, if at beginning of line ("\%" -> "%")
+%   - leading blanks are allowed (this is something I can't live without)
+%   - braces are automatically escaped when they appear in example blocks
+%
+
+@comment %**start of header
+@documentlanguage en
+@setfilename svec-sw.info
+@settitle svec-sw
+@iftex
+@afourpaper
+@end iftex
+@comment %**end of header
+
+@setchapternewpage off
+
+@set update-month February 2013
+
+@finalout
+
+@titlepage
+@title SVEC Software Support
+@subtitle Version 1.0 (@value{update-month})
+@subtitle A driver for the SVEC card and its FMC modules
+@author Luis F. Ruiz Gago for CERN (BE-CO-HT)
+@end titlepage
+@headings single
+
+@c ##########################################################################
+@iftex
+@contents
+@end iftex
+
+@paragraphindent 3mm
+
+@c ##########################################################################
+@node Top
+@top Introduction
+
+This is the manual for the SVEC device driver. SVEC is the @i{Simple
+VME FMC Carrier} developed at
+@url{http://www.ohwr.org/projects/svec}. This manual is part of the
+associated software project, hosted at
+@url{http://www.ohwr.org/projects/svec-sw}. The latest version of
+this work is always available in the @i{git} repository at @code{ohwr.org}.
+
+@c ##########################################################################
+@node History and Overview
+@chapter History and Overview
+
+The driver is a client of the FMC software bus abstraction. The package
+@i{fmc-bus} is dowloaded as a @i{git} submodule of this package, and
+its latest version can be found at @url{http://www.ohwr.org/projects/fmc-bus}.
+
+@c ##########################################################################
+@node Compiling the Drivers
+@chapter Compiling the Drivers
+
+The kernel modules that are part of this package live in the @i{kernel}
+subdirectory. To compile them, you need to 
+set the @i{LINUX} variable in your environment with the top directory of
+the kernel sources for the version your are going to run the driver under.
+The driver compiles against Linux-2.6.24 and it should work in later ones,
+but I'm only testing it with 2.6.24 and 3.2.33.
+
+To compile run ``@code{make}'' with the previous variable set or 
+``@code{make LINUX=<top_directory_of_kernel_sources>}''. 
+
+Up to now Makefile doesn't perform an automatic module
+installation under a standard Linux installation, since I'm mainly using it 
+on CERN machines with their particular way of doing things.
+
+Please note that by default the package compiles the
+@i{fmc-bus} modules, too (the project is a @i{git} submodule).
+
+@c ##########################################################################
+@node Role of svec.ko
+@chapter Role of svec.ko
+
+The @code{svec.ko} driver depends on @code{fmc.ko}, that must
+be loaded first (unless you rely on automatic dependencies).
+
+@code{svec.ko} registers as a VME driver and maps two VME windows, one as
+CR/CSR space and another one A32/D32 for register access.
+
+@c ==========================================================================
+@node SVEC Initialization
+@section SVEC Initialization
+
+For each new SVEC device found on the system, the driver performs the
+following steps:
+
+@itemize @bullet
+@item It maps a VME CR/CSR window.
+@item It loads the @code{fmc/svec_golden.bin} ``golden'' gateware file.
+@item It maps a VME A32/D32 window.
+@item It allocates two @i{fmc_device} structures and registers as
+      a new devices in the @i{fmc} bus.
+@end itemize
+
+Failure of any of the above steps is fatal.
+
+The suggested @code{svec_golden.bin} gateware binary is always available
+from the @i{files} area of the @i{svec-sw} project on @code{ohwr.org}.
+The current binary version to be used with this software version is
+@url{http://www.ohwr.org/attachments/download/1905/golden-svec-20130114-1000.tar.gz}.
+
+@b{Note:} currently the SVEC driver does not re-write the golden
+binary file when the sub-driver releases control of the card. This
+allows a further driver to make use of an existing binary, which may be
+useful during development.
+
+@c ==========================================================================
+@node SVEC Module Parameters
+@section SVEC Module Parameters
+
+The module can receive the following parameters to customize its operation:
+
+@table @code
+
+@item lun
+	
+	Index value for the SVEC card.
+
+@item vmebase1
+
+	Unsigned long parameter which represent the first VME address of the
+	SVEC card. Its value is calculated from the physical slot, 0x80000
+	times the slot number.
+
+@item vmebase2
+
+	Unsigned long parameter for the second VME address. It is used for
+	allocating a VME A32/D32 window. Though this value can be arbitrarily
+	chosen in principle, you should take into account that the window size
+	is 0x100000 and it can not overlap with another VME map in your system.	
+
+@item vector
+	
+	IRQ vector used by the card.
+
+@item fw_name
+
+	String parameter indicating the golden bitstream name,
+	(@code{fmc/svec_golden.bin}) by default. In a near future a default
+	golden will be loaded - hopefully - from an onboard Flash memory
+	and this parameter might be used to override it.
+
+@item level
+
+	IRQ level. 
+
+@item show_sdb
+
+	If not zero, the SDB internal structure of the golden binary
+        is reported through kernel messages. It is disabled by default.
+
+@end table
+
+Any mezzanine-specific action must be performed by the driver for the
+specific FMC card, including reprograming the FPGA with the final
+gateware file.  
+
+@b{Note:} the driver looks for the gateware binary in @i{/lib/firmware/fmc},
+which is where all fmc-related external files are expected to live.
+That's because our own installations share firmware for COTS peripherals
+but mount a host-specific NFS subdirectory.
+
+Please refer to the @i{fmc-bus} manual for details about the overall
+design of the interactions of carriers and mezzanines.
+
+@c ==========================================================================
+@node Interrupts in svec.ko
+@section Interrupts in svec.ko
+
+To-Do. Not supported for the current driver version.
+
+@c ##########################################################################
+@node User-Space Tools
+@chapter User-Space Tools
+
+
+@c ##########################################################################
+@node Bugs and Missing Features
+@chapter Bugs and Missing Features
+
+@itemize @bullet
+
+@item Interrupt support is missing. Is the next step.
+
+@item Identification of the mezzanine is completely missing; every @i{fmc}
+driver at this point takes hold of every device. 
+
+@end itemize
+
+@c ##########################################################################
+@bye
+
+
+@c  LocalWords:  gnudd titlepage iftex texinfo CERN documentlanguage settitle
+@c  LocalWords:  documentencoding setfilename afourpaper paragraphindent EEPROM
+@c  LocalWords:  setchapternewpage finalout eeprom gateware devmem devfn busid
+@c  LocalWords:  speclib Gennum timestamps stampm ifname timespec timestamp
+@c  LocalWords:  timestamping linux FPGA ohwr http
