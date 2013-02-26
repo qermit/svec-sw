@@ -46,9 +46,6 @@ MODULE_PARM_DESC(vector, "IRQ vector");
 module_param_array(lun, int, &lun_num, S_IRUGO);
 MODULE_PARM_DESC(lun, "Index value for SVEC card");
 
-/* For device creation. Not really sure if it's necessary... */
-static dev_t svec_devno;
-
 static const struct file_operations svec_fops = {
 	.owner = THIS_MODULE,
 };
@@ -340,7 +337,6 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 {
 	struct svec_dev *svec;
 	const char *name;
-	dev_t devno;
 	int error = 0;
 
 	if (lun[ndev] >= SVEC_MAX_DEVICES) {
@@ -395,17 +391,6 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		svec->vmebase1, svec->vmebase2, vector[ndev], svec->level);
 
 	dev_info(pdev, "%s\n", svec->description);
-
-	/*Create cdev */
-	devno = MKDEV(MAJOR(svec_devno), ndev);
-
-	cdev_init(&svec->cdev, &svec_fops);
-	svec->cdev.owner = THIS_MODULE;
-	error = cdev_add(&svec->cdev, devno, 1);
-	if (error) {
-		dev_err(pdev, "Error %d adding cdev %d\n", error, ndev);
-		goto failed;
-	}
 
 	dev_set_drvdata(svec->dev, svec);
 	error = svec_create_sysfs_files(svec);
@@ -466,27 +451,18 @@ static int __init svec_init(void)
 	        return -EINVAL;
 	}
 
-	/* Device creation for the carrier, just in case... */
-	error = alloc_chrdev_region(&svec_devno, 0, lun_num, "svec");
-	if (error) {
-		pr_err("%s: Failed to allocate chrdev region\n", __func__);
-		goto out;
-	}
-
 	error = vme_register_driver(&svec_driver, lun_num);
 	if (error) {
 		pr_err("%s: Cannot register vme driver - lun [%d]\n", __func__,
 			lun_num);
 	}
 
-out:
 	return error;
 }
 
 static void __exit svec_exit(void)
 {
 	vme_unregister_driver(&svec_driver);
-	unregister_chrdev_region(svec_devno, lun_num);
 }
 
 
