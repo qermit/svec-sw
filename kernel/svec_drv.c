@@ -311,14 +311,21 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 	return 0;
 }
 
-static int __devinit svec_match(struct device *pdev, unsigned int ndev)
+static int check_parameters(struct device *pdev, unsigned int ndev)
 {
-	/* TODO */
+	if (lun[ndev] >= SVEC_MAX_DEVICES) {
+		dev_err(pdev, "Card lun %d out of range [0..%d]\n",
+			lun[ndev], SVEC_MAX_DEVICES -1);
+		return 0;
+	}
 
-	if (ndev >= vmebase1_num)
-		 return 0;
-	if (ndev >= vector_num || ndev >= level_num) {
-		dev_warn(pdev, "irq vector/level missing\n");
+	if ((ndev >= vmebase1_num) || (ndev >= vmebase2_num)) {
+		dev_err(pdev, "base address missing\n");
+		return 0;
+	}
+
+	if (ndev >= vector_num) {
+		dev_err(pdev, "irq vector missing\n");
 		return 0;
 	}
 
@@ -359,32 +366,46 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	dev_t devno;
 	int error = 0;
 
-	if (lun[ndev] >= SVEC_MAX_DEVICES) {
-		dev_err(pdev, "Card lun %d out of range [0..%d]\n",
-			lun[ndev], SVEC_MAX_DEVICES -1);
-		return -EINVAL;
-	}
-
 	svec = kzalloc(sizeof(*svec), GFP_KERNEL);
 	if (svec == NULL) {
 		dev_err(pdev, "Cannot allocate memory for svec card struct\n");
 		return -ENOMEM;
 	}
 
+	/* Check parameters */
+	if (!check_parameters(pdev, ndev))
+		return -EINVAL;
+
 	/* Initialize struct fields*/
 	svec->lun = lun[ndev];
 	svec->vmebase1 = vmebase1[ndev];
 	svec->vmebase2 = vmebase2[ndev];
 	svec->vector = vector[ndev];
-	svec->level = level[ndev];
-	svec->fw_name = fw_name[ndev];
 	svec->slot_n = 2; /* FIXME: Two mezzanines */
 	svec->dev = pdev;
+
+	/* Optional parameters */
+	if (ndev < level_num) {
+		svec->level = level[ndev];
+	} else {
+		svec->level = SVEC_IRQ_LEVEL; /* Default value */
+		dev_warn(pdev, "'level' parameter not provided,"\
+				" using %d as default\n", svec->level);
+	}
+
+	if (ndev < fw_name_num) {
+		svec->fw_name = fw_name[ndev];
+	} else {
+		svec->fw_name = svec_fw_name; /* Default value */
+		dev_warn(pdev, "'fw_name' parameter not provided,"\
+				" using %s as default\n", svec->fw_name);
+	}
 
 	/* Alloc fmc structs memory */
 	svec->fmcs = kzalloc(svec->slot_n * sizeof(struct fmc_device),
 				GFP_KERNEL);
-	if (!svec->fmcs) return -ENOMEM;
+	if (!svec->fmcs)
+		return -ENOMEM;
 
 	/* Map CR/CSR space */
 	error = svec_map_window(svec, MAP_CR_CSR);
@@ -403,7 +424,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 
 	dev_info(pdev, "%s\n", svec->description);
 
-	/*Create cdev, just to know the carrier is there */
+	/*Create cdev */
 	devno = MKDEV(MAJOR(svec_devno), ndev);
 
 	cdev_init(&svec->cdev, &svec_fops);
@@ -455,7 +476,6 @@ failed:
 }
 
 static struct vme_driver svec_driver = {
-	.match		= svec_match,
 	.probe		= svec_probe,
 	.remove		= __devexit_p(svec_remove),
 	.driver		= {
@@ -466,8 +486,6 @@ static struct vme_driver svec_driver = {
 static int __init svec_init(void)
 {
 	int error = 0;
-
-	/* TODO: Check parameters */
 
 	/* Device creation for the carrier, just in case... */
 	error = alloc_chrdev_region(&svec_devno, 0, lun_num, "svec");
