@@ -31,8 +31,6 @@ static char *fw_name[SVEC_MAX_DEVICES];
 static unsigned int fw_name_num;
 static int  vector[SVEC_MAX_DEVICES];
 static unsigned int vector_num;
-static int  level[SVEC_MAX_DEVICES];
-static unsigned int level_num;
 static int lun[SVEC_MAX_DEVICES] = SVEC_DEFAULT_IDX;
 static unsigned int lun_num;
 
@@ -45,8 +43,6 @@ module_param_array_named(fw_name, fw_name , charp, &fw_name_num, S_IRUGO);
 MODULE_PARM_DESC(fw_name, "firmware file");
 module_param_array(vector, int, &vector_num, S_IRUGO);
 MODULE_PARM_DESC(vector, "IRQ vector");
-module_param_array(level, int, &level_num, S_IRUGO);
-MODULE_PARM_DESC(level, "IRQ level");
 module_param_array(lun, int, &lun_num, S_IRUGO);
 MODULE_PARM_DESC(lun, "Index value for SVEC card");
 
@@ -313,27 +309,6 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 	return 0;
 }
 
-static int check_parameters(struct device *pdev, unsigned int ndev)
-{
-	if (lun[ndev] >= SVEC_MAX_DEVICES) {
-		dev_err(pdev, "Card lun %d out of range [0..%d]\n",
-			lun[ndev], SVEC_MAX_DEVICES -1);
-		return 0;
-	}
-
-	if ((ndev >= vmebase1_num) || (ndev >= vmebase2_num)) {
-		dev_err(pdev, "base address missing\n");
-		return 0;
-	}
-
-	if (ndev >= vector_num) {
-		dev_err(pdev, "irq vector missing\n");
-		return 0;
-	}
-
-	return 1;
-}
-
 int svec_load_fpga_file(struct svec_dev *svec, const char *name)
 {
 	struct device *dev = svec->dev;
@@ -368,33 +343,28 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	dev_t devno;
 	int error = 0;
 
+	if (lun[ndev] >= SVEC_MAX_DEVICES) {
+		dev_err(pdev, "Card lun %d out of range [0..%d]\n",
+			lun[ndev], SVEC_MAX_DEVICES -1);
+		return -EINVAL;
+	}
+
 	svec = kzalloc(sizeof(*svec), GFP_KERNEL);
 	if (svec == NULL) {
 		dev_err(pdev, "Cannot allocate memory for svec card struct\n");
 		return -ENOMEM;
 	}
 
-	/* Check parameters */
-	if (!check_parameters(pdev, ndev))
-		return -EINVAL;
-
 	/* Initialize struct fields*/
 	svec->lun = lun[ndev];
 	svec->vmebase1 = vmebase1[ndev];
 	svec->vmebase2 = vmebase2[ndev];
 	svec->vector = vector[ndev];
+	svec->level = SVEC_IRQ_LEVEL; /* Default value */
 	svec->slot_n = 2; /* FIXME: Two mezzanines */
 	svec->dev = pdev;
 
-	/* Optional parameters */
-	if (ndev < level_num) {
-		svec->level = level[ndev];
-	} else {
-		svec->level = SVEC_IRQ_LEVEL; /* Default value */
-		dev_warn(pdev, "'level' parameter not provided,"\
-				" using %d as default\n", svec->level);
-	}
-
+	/* Get firmware name */
 	if (ndev < fw_name_num) {
 		svec->fw_name = fw_name[ndev];
 	} else {
@@ -422,7 +392,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	strlcpy(svec->driver, DRIVER_NAME, sizeof(svec->driver));
 	snprintf(svec->description, sizeof(svec->description),
 		"SVEC at VME-A32 0x%08lx - 0x%08lx irqv %d irql %d",
-		svec->vmebase1, svec->vmebase2, vector[ndev], level[ndev]);
+		svec->vmebase1, svec->vmebase2, vector[ndev], svec->level);
 
 	dev_info(pdev, "%s\n", svec->description);
 
@@ -451,7 +421,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 
 	/* configure and activate function 0 */
 	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, vmebase2[ndev],
-				vector[ndev], level[ndev]);
+				vector[ndev], svec->level);
 
 	/* Map A32 space */
 	error = svec_map_window(svec, MAP_REG);
@@ -488,6 +458,13 @@ static struct vme_driver svec_driver = {
 static int __init svec_init(void)
 {
 	int error = 0;
+
+	/* Check that all insmod argument vectors are the same length */
+	if (lun_num != vmebase1_num || lun_num != vmebase2_num ||
+        	lun_num != vector_num) {
+	        pr_err("%s: The number of parameters doesn't match\n", __func__);
+	        return -EINVAL;
+	}
 
 	/* Device creation for the carrier, just in case... */
 	error = alloc_chrdev_region(&svec_devno, 0, lun_num, "svec");
