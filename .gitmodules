@@ -1,3 +1,3 @@
 [submodule "kernel/fmc-bus"]
-	path = kernel/fmc-bus
+	path = fmc-bus
 	url = git://ohwr.org/fmc-projects/fmc-bus.git
