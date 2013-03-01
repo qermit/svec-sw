@@ -53,8 +53,8 @@ struct svec_dev {
 	struct list_head	list;
 	unsigned long		irqcount;
 	void			*sub_priv;
-	struct fmc_device	*fmcs;
-	int			slot_n;
+	struct fmc_device	*fmcs;		/* FMC devices */
+	int			fmcs_n;		/* Number of FMC devices */
 	int			irq_count;	/* for mezzanine use too */
 	struct completion	compl;
 	struct gpio_chip	*gpio;
