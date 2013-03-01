@@ -357,7 +357,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->vmebase2 = vmebase2[ndev];
 	svec->vector = vector[ndev];
 	svec->level = SVEC_IRQ_LEVEL; /* Default value */
-	svec->slot_n = 2; /* FIXME: Two mezzanines */
+	svec->fmcs_n = 2; /* FIXME: Two mezzanines */
 	svec->dev = pdev;
 
 	/* Get firmware name */
@@ -370,7 +370,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	}
 
 	/* Alloc fmc structs memory */
-	svec->fmcs = kzalloc(svec->slot_n * sizeof(struct fmc_device),
+	svec->fmcs = kzalloc(svec->fmcs_n * sizeof(struct fmc_device),
 				GFP_KERNEL);
 	if (!svec->fmcs)
 		return -ENOMEM;
