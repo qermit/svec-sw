@@ -32,7 +32,7 @@ enum svec_map_win {
 /* Our device structure */
 struct svec_dev {
 	int 	                lun;
-	unsigned long		vmebase1;
+	int			slot;
 	unsigned long		vmebase2;
 	int 			vector;
 	int			level;
