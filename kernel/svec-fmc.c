@@ -151,14 +151,13 @@ static struct fmc_operations svec_fmc_operations = {
 	.validate =		svec_validate,
 };
 
-int svec_fmc_prepare(struct svec_dev *svec, unsigned int carrier_slot)
+int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 {
-	struct fmc_device *fmc = svec->fmcs + carrier_slot;
-	unsigned long vme_slot = (svec->vmebase1 >> 19);
+	struct fmc_device *fmc = svec->fmcs + fmc_slot;
 	int ret = 0;
 
 	/* FIXME: For now, only two mezzanines carrier */
-	if (carrier_slot<0 || carrier_slot>1)
+	if (fmc_slot < 0 || fmc_slot > 1)
 		return -EINVAL;
 
 	fmc->version = FMC_VERSION;
@@ -172,13 +171,13 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int carrier_slot)
 	fmc->op = &svec_fmc_operations;
 	fmc->hwdev = svec->dev; /* for messages */
 
-	fmc->slot_id = carrier_slot;
-	fmc->device_id = (vme_slot << 6) | carrier_slot;
-	fmc->eeprom_addr = 0x50 + 2 * carrier_slot;
+	fmc->slot_id = fmc_slot;
+	fmc->device_id = (svec->slot << 6) | fmc_slot;
+	fmc->eeprom_addr = 0x50 + 2 * fmc_slot;
 	fmc->memlen = 0x100000;
 
 
-	ret = svec_i2c_init(fmc, carrier_slot);
+	ret = svec_i2c_init(fmc, fmc_slot);
 	if (ret) {
 		dev_err(svec->dev, "Error %d on svec i2c init", ret);
 		return ret;
@@ -196,19 +195,19 @@ int svec_fmc_create(struct svec_dev *svec)
 	int error = 0;
 
 	/* fmc structures filling */
-	for (i=0; i < svec->slot_n; i++) {
+	for (i=0; i < svec->fmcs_n; i++) {
 		error = svec_fmc_prepare(svec, i);
 		if (error)
 			goto failed;
 	}
 
 	/* fmc device creation */
-	error = fmc_device_register_n(svec->fmcs, svec->slot_n);
+	error = fmc_device_register_n(svec->fmcs, svec->fmcs_n);
 	if (error) {
 		dev_err(svec->dev, "Error registering fmc devices\n");
 		goto failed;
 	}
-	dev_info(svec->dev, "%d fmc devices registered\n", svec->slot_n);
+	dev_info(svec->dev, "%d fmc devices registered\n", svec->fmcs_n);
 
 failed:
 	return error;
@@ -218,9 +217,9 @@ failed:
 void svec_fmc_destroy(struct svec_dev *svec)
 {
 	if (svec->fmcs) {
-		fmc_device_unregister_n(svec->fmcs, svec->slot_n);
+		fmc_device_unregister_n(svec->fmcs, svec->fmcs_n);
 		kfree(svec->fmcs);
 		dev_info(svec->dev, "%d fmc devices unregistered\n",
-						svec->slot_n);
+						svec->fmcs_n);
 	}
 }
