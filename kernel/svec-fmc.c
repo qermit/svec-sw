@@ -79,7 +79,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 
 	/* configure and activate function 0 */
 	dev_info(fmc->hwdev, "svec-fmc: setup fa0\n");
-	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, svec->vmebase2,
+	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, svec->vmebase,
 				svec->vector, svec->level);
 
 	svec->already_reprogrammed = 1;

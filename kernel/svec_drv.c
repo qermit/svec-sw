@@ -25,8 +25,8 @@ char *svec_fw_name = "fmc/svec_golden.bin";
 /* Module parameters */
 static int  slot[SVEC_MAX_DEVICES];
 static unsigned int slot_num;
-static long vmebase2[SVEC_MAX_DEVICES];
-static unsigned int vmebase2_num;
+static uint32_t  vmebase[SVEC_MAX_DEVICES];
+static unsigned int vmebase_num;
 static char *fw_name[SVEC_MAX_DEVICES];
 static unsigned int fw_name_num;
 static int  vector[SVEC_MAX_DEVICES];
@@ -37,8 +37,8 @@ static unsigned int lun_num;
 
 module_param_array(slot, ulong, &slot_num, S_IRUGO);
 MODULE_PARM_DESC(slot, "Slot where SVEC card is installed");
-module_param_array(vmebase2, ulong, &vmebase2_num, S_IRUGO);
-MODULE_PARM_DESC(vmebase2, "VME Base address of the SVEC card registers");
+module_param_array(vmebase, long, &vmebase_num, S_IRUGO);
+MODULE_PARM_DESC(vmebase, "VME Base address of the SVEC card registers");
 module_param_array_named(fw_name, fw_name , charp, &fw_name_num, S_IRUGO);
 MODULE_PARM_DESC(fw_name, "firmware file");
 module_param_array(vector, int, &vector_num, S_IRUGO);
@@ -69,7 +69,7 @@ int svec_map_window(struct svec_dev *svec, enum svec_map_win map_type)
 	if (map_type == MAP_REG) {
 		am = VME_A32_USER_DATA_SCT;
 		dw = VME_D32;
-		base = svec->vmebase2;
+		base = svec->vmebase;
 		size = 0x100000;
 	}
 
@@ -354,7 +354,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	/* Initialize struct fields*/
 	svec->lun = lun[ndev];
 	svec->slot = slot[ndev];
-	svec->vmebase2 = vmebase2[ndev];
+	svec->vmebase = vmebase[ndev];
 	svec->vector = vector[ndev];
 	svec->level = SVEC_IRQ_LEVEL; /* Default value */
 	svec->fmcs_n = 2; /* FIXME: Two mezzanines */
@@ -387,8 +387,8 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 #endif
 	strlcpy(svec->driver, DRIVER_NAME, sizeof(svec->driver));
 	snprintf(svec->description, sizeof(svec->description),
-		"SVEC at VME-A32 slot %d 0x%08x - 0x%08lx irqv %d irql %d",
-		svec->slot, svec->slot << 19, svec->vmebase2,
+		"SVEC at VME-A32 slot %d 0x%08x - 0x%08x irqv %d irql %d",
+		svec->slot, svec->slot << 19, svec->vmebase,
 		vector[ndev], svec->level);
 
 	dev_info(pdev, "%s\n", svec->description);
@@ -406,7 +406,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		goto failed;
 
 	/* configure and activate function 0 */
-	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, vmebase2[ndev],
+	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, vmebase[ndev],
 				vector[ndev], svec->level);
 
 	/* Map A32 space */
@@ -446,7 +446,7 @@ static int __init svec_init(void)
 	int error = 0;
 
 	/* Check that all insmod argument vectors are the same length */
-	if (lun_num != slot_num || lun_num != vmebase2_num ||
+	if (lun_num != slot_num || lun_num != vmebase_num ||
         	lun_num != vector_num) {
 	        pr_err("%s: The number of parameters doesn't match\n", __func__);
 	        return -EINVAL;
