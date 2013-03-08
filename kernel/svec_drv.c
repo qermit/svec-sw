@@ -145,7 +145,7 @@ int svec_bootloader_unlock(struct svec_dev *svec)
 	return 0;
 }
 
-int svec_bootloader_is_active(struct svec_dev *svec)
+int svec_is_bootloader_active(struct svec_dev *svec)
 {
 	struct device *dev = svec->dev;
 	uint32_t idc;
@@ -242,7 +242,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	}
 
 	/* Check if bootloader is active */
-	if (!svec_bootloader_is_active(svec)) {
+	if (!svec_is_bootloader_active(svec)) {
 		dev_err(dev, "Bootloader locked after unlock!\n");
 		return -EINVAL;
 	}
