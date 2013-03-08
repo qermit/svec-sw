@@ -61,7 +61,7 @@ struct svec_dev {
 };
 
 /* Functions and data in svec-vme.c */
-extern int svec_bootloader_is_active(struct svec_dev *svec);
+extern int svec_is_bootloader_active(struct svec_dev *svec);
 extern int svec_bootloader_unlock (struct svec_dev *svec);
 extern int svec_load_fpga(struct svec_dev *svec, const void *data, int size);
 extern int svec_load_fpga_file(struct svec_dev *svec, const char *name);
