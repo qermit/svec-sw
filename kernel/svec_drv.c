@@ -335,6 +335,39 @@ int svec_load_fpga_file(struct svec_dev *svec, const char *name)
 	return err;
 }
 
+int svec_is_present(struct svec_dev *svec)
+{
+	struct device *dev = svec->dev;
+	uint32_t idc;
+	void *addr;
+
+	/* Check for bootloader */ 
+	if (svec_is_bootloader_active(svec)) {
+		return 1;
+	}
+
+	/* Ok, maybe there is a svec, but bootloader is not active.
+	In such case, a CR/CSR with a valid manufacturer ID should exist*/
+	
+	addr = svec->map[MAP_CR_CSR]->kernel_va + VME_VENDOR_ID_OFFSET;
+
+	idc = be32_to_cpu(ioread32(addr)) << 16;
+	idc += be32_to_cpu(ioread32(addr + 4))  << 8;
+	idc += be32_to_cpu(ioread32(addr + 8));
+
+	if (idc == SVEC_VENDOR_ID) {
+		dev_info(dev, "vendor ID is 0x%08x\n", idc);
+		return 1;
+	}
+
+	dev_err(dev, "wrong vendor ID. 0x%08x found, 0x%08x expected\n",
+			idc, SVEC_VENDOR_ID);
+	dev_err(dev, "SVEC not present at slot %d\n", svec->slot);
+
+	return 0;
+
+}
+
 static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 {
 	struct svec_dev *svec;
@@ -379,8 +412,14 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 
 	/* Map CR/CSR space */
 	error = svec_map_window(svec, MAP_CR_CSR);
-	if (error)
+	if (error) 
 		goto failed;
+
+	if (!svec_is_present(svec))
+	{
+		error = -EINVAL;
+		goto failed_unmap_crcsr;
+	}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 	name = pdev->bus_id;
@@ -425,8 +464,9 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	return 0;
 
 failed_unmap:
-	svec_unmap_window(svec, MAP_CR_CSR);
 	svec_unmap_window(svec, MAP_REG);
+failed_unmap_crcsr:
+	svec_unmap_window(svec, MAP_CR_CSR);
 
 failed:
 	kfree(svec->fmcs);
