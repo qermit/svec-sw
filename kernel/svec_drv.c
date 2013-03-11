@@ -407,8 +407,10 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	/* Alloc fmc structs memory */
 	svec->fmcs = kzalloc(svec->fmcs_n * sizeof(struct fmc_device),
 				GFP_KERNEL);
-	if (!svec->fmcs)
-		return -ENOMEM;
+	if (!svec->fmcs) {
+		error = -ENOMEM;
+		goto failed_mem;
+	}
 
 	/* Map CR/CSR space */
 	error = svec_map_window(svec, MAP_CR_CSR);
@@ -471,7 +473,9 @@ failed_unmap_crcsr:
 failed:
 	kfree(svec->fmcs);
 	svec->fmcs = NULL;
+failed_mem:
 	kfree(svec);
+
 	return error;
 }
 
