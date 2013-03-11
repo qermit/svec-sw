@@ -301,6 +301,10 @@ static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
 	svec_unmap_window(svec, MAP_CR_CSR);
 	svec_unmap_window(svec, MAP_REG);
 
+	kfree(svec);
+
+	dev_info(pdev, "removed\n");
+
 	return 0;
 }
 
