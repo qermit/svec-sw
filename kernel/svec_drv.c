@@ -217,7 +217,6 @@ void svec_setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level)
 
 int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 {
-
 	struct device *dev = svec->dev;
 	const uint32_t *data = blob;
 	void *loader_addr; /* FPGA loader virtual address */
@@ -227,7 +226,6 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	int xldr_fifo_r1;  /* Bitstream data input register */
 	int i;
 	unsigned long j;
-	int err = 0;
 
 	/* Check if we have something to do... */
 	if ((data == NULL) || (size == 0)){
@@ -291,7 +289,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	/* give the VME bus control to App FPGA */
 	iowrite32(cpu_to_be32(XLDR_CSR_EXIT), loader_addr + XLDR_REG_CSR);
 
-	return err;
+	return 0;
 }
 
 static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
