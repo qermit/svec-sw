@@ -90,6 +90,7 @@ int svec_map_window(struct svec_dev *svec, enum svec_map_win map_type)
 	if (( rval = vme_find_mapping(svec->map[map_type], 1)) != 0) {
 		dev_err(dev, "Failed to map window %d: (%d)\n",
 				(int)map_type, rval);
+		kfree(svec->map[map_type]);
 		return -EINVAL;
 	}
 
