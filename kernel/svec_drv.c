@@ -141,7 +141,7 @@ int svec_bootloader_unlock(struct svec_dev *svec)
 	for (i=0; i<8; i++)
 		iowrite32(cpu_to_be32(boot_seq[i]), addr);
 
-	dev_info(dev, "Wrote unlock sequence at %x\n", (unsigned int)addr);
+	dev_info(dev, "Wrote unlock sequence at %lx\n", (unsigned long)addr);
 
 	return 0;
 }
@@ -331,7 +331,7 @@ int svec_load_fpga_file(struct svec_dev *svec, const char *name)
 			name, err);
 		return err;
 	}
-	dev_info(dev, "Got file \"%s\", %i (0x%x) bytes\n",
+	dev_info(dev, "Got file \"%s\", %zi (0x%zx) bytes\n",
 			name, fw->size, fw->size);
 
 	err = svec_load_fpga(svec, (uint32_t *)fw->data, fw->size);
