@@ -222,11 +222,11 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	const uint32_t *data = blob;
 	void *loader_addr; /* FPGA loader virtual address */
 	uint32_t n;
-	uint32_t rval;
+	uint32_t rval = 0;
 	int xldr_fifo_r0;  /* Bitstream data input control register */
 	int xldr_fifo_r1;  /* Bitstream data input register */
 	int i;
-	unsigned long j;
+	u64 timeout;
 
 	/* Check if we have something to do... */
 	if ((data == NULL) || (size == 0)){
@@ -271,14 +271,18 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	}
 
 	/* Two seconds later */
-	j = jiffies + 2 * HZ;
-	do {
-		if (time_after(jiffies, j)) {
-			dev_err(dev, "error: FPGA program timeout.\n");
-			return -EIO;
-		}
+	timeout = get_jiffies_64() + 2 * HZ;
+	while (time_before64(get_jiffies_64(), timeout)) {
 		rval = be32_to_cpu(ioread32(loader_addr + XLDR_REG_CSR));
-	} while (!(rval & XLDR_CSR_DONE));
+		if (rval & XLDR_CSR_DONE) 
+			break;
+		msleep(1);
+	}
+
+	if (!(rval & XLDR_CSR_DONE)) {
+		dev_err(dev, "error: FPGA program timeout.\n");
+		return -EIO;
+	}
 
 	if (rval & XLDR_CSR_ERROR) {
 		dev_err(dev, "Bitstream loaded, status ERROR\n");
