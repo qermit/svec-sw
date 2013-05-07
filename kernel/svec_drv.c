@@ -25,7 +25,7 @@ char *svec_fw_name = "fmc/svec_golden.bin";
 /* Module parameters */
 static int  slot[SVEC_MAX_DEVICES];
 static unsigned int slot_num;
-static uint32_t  vmebase[SVEC_MAX_DEVICES];
+static unsigned int vmebase[SVEC_MAX_DEVICES];
 static unsigned int vmebase_num;
 static char *fw_name[SVEC_MAX_DEVICES];
 static unsigned int fw_name_num;
@@ -35,9 +35,9 @@ static int lun[SVEC_MAX_DEVICES] = SVEC_DEFAULT_IDX;
 static unsigned int lun_num;
 
 
-module_param_array(slot, ulong, &slot_num, S_IRUGO);
+module_param_array(slot, int, &slot_num, S_IRUGO);
 MODULE_PARM_DESC(slot, "Slot where SVEC card is installed");
-module_param_array(vmebase, long, &vmebase_num, S_IRUGO);
+module_param_array(vmebase, uint, &vmebase_num, S_IRUGO);
 MODULE_PARM_DESC(vmebase, "VME Base address of the SVEC card registers");
 module_param_array_named(fw_name, fw_name , charp, &fw_name_num, S_IRUGO);
 MODULE_PARM_DESC(fw_name, "firmware file");
