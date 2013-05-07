@@ -8,7 +8,7 @@ DRIVER_NAME=fmc-fine-delay
 GOLDEN="fmc/svec_golden.bin"
 
 # symlink to true FDELAY="fmc/svec-fine-delay-20121218-1549.bin"
-FDELAY="fmc/svec_top.bin"
+FDELAY="fmc/svec-fine-delay.bin"
 
 OUTPUT=":"
 RUN=""
