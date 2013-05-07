@@ -25,5 +25,10 @@ all: modules
 
 .PHONY: all modules clean help install modules_install
 
-modules clean help install modules_install:
+modules help install modules_install:
 	$(MAKE) -C $(LINUX) M=$(shell pwd) CPU=$(CPU) KVER=$(KVER) $@
+
+# be able to run the "clean" rule even if $(LINUX) is not valid
+clean:
+	rm -rf *.o *~  .*.cmd *.ko *.mod.c .tmp_versions Module.symvers \
+                         Module.markers modules.order

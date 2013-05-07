@@ -1,16 +1,23 @@
+ENV ?= lab
+CPU ?= L865
 
-VME_INC ?= /acc/src/dsc/drivers/coht/vmebridge/include/ 
+include /acc/src/dsc/co/Make.auto
+
+VME_INC ?= /acc/src/dsc/drivers/coht/vmebridge/include/
 
 CFLAGS += -g -Wall
 CFLAGS += -I $(VME_INC)
-LDFLAGS += -L /acc/local/L865/lib 
+LDFLAGS += -L /acc/local/$(CPU)/lib
 LDLIBS += -lvmebus
 
-all: vme
-vme: vme.o
+all: vme.$(CPU)
+vme.$(CPU): vme.$(CPU).o
+
+install-$(ENV):
+	dsc_install vme.$(CPU) /acc/dsc/$(ENV)/$(CPU)/bin
 
 clean:
-	rm -f *.o vme
+	rm -f *.o *.$(CPU)
 
 # These targets are called from ../Makefile, just do nothing
 modules install modules_install:
