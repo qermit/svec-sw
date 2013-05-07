@@ -16,7 +16,7 @@ KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.fmc
 
 obj-m := svec.o
 
-svec-objs := svec_drv.o
+svec-objs := svec-drv.o
 svec-objs += svec-sysfs.o
 svec-objs += svec-fmc.o
 svec-objs += svec-i2c.o
