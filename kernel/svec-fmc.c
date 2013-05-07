@@ -122,7 +122,7 @@ static int svec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
-	return svec_eeprom_read(fmc, fmc->eeprom_addr, pos, data, len);
+	return svec_eeprom_read(fmc, pos, data, len);
 
 	return -ENOTSUPP;
 }
@@ -133,7 +133,7 @@ static int svec_write_ee(struct fmc_device *fmc, int pos,
 
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
-	return svec_eeprom_write(fmc, fmc->eeprom_addr, pos, data, len);
+	return svec_eeprom_write(fmc, pos, data, len);
 
 	return -ENOTSUPP;
 }
@@ -150,6 +150,34 @@ static struct fmc_operations svec_fmc_operations = {
 	.write_ee =		svec_write_ee,
 	.validate =		svec_validate,
 };
+
+static int check_golden(struct fmc_device *fmc)
+{
+	struct svec_dev *svec = fmc->carrier_data;
+	int ret;
+	uint32_t magic;
+
+	/* poor man's SDB */
+	magic = fmc_readl(fmc, 0x00);
+	if (magic != 0x5344422d) {
+		dev_err(svec->dev, "Bad SDB magic: 0x%08x\n", magic);
+		return -ENODEV;
+	}
+	if ( (ret = fmc_scan_sdb_tree(fmc, 0x0)) < 0)
+		return -ENODEV;
+
+	if (fmc_readl(fmc, 0x5c) != 0x0000ce42) {
+		dev_err(svec->dev, "unsexpected vendor in SDB\n");
+		return -ENODEV;
+	}
+	if (fmc_readl(fmc, 0x60) != 0x123c5443) {
+		dev_err(svec->dev, "unexpected device in SDB\n");
+		return -ENODEV;
+	}
+	if (svec_show_sdb)
+		fmc_show_sdb_tree(fmc);
+	return 0;
+}
 
 int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 {
@@ -176,6 +204,12 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	fmc->eeprom_addr = 0x50 + 2 * fmc_slot;
 	fmc->memlen = 0x100000;
 
+	/* check golden integrity */
+	ret = check_golden(fmc);
+	if (ret) {
+		dev_err(svec->dev, "Bad golden, error %d\n", ret);
+		return ret;
+	}
 
 	ret = svec_i2c_init(fmc, fmc_slot);
 	if (ret) {
