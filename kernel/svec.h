@@ -83,10 +83,10 @@ extern void svec_fmc_check(struct svec_dev *svec, unsigned int n);
 /* Functions in svec-i2c.c, used by svec-fmc.c */
 extern int svec_i2c_init(struct fmc_device *fmc, unsigned int n);
 extern void svec_i2c_exit(struct fmc_device *fmc);
-extern int svec_eeprom_read(struct fmc_device *fmc, int i2c_addr,
-			    uint32_t offset, void *buf, size_t size);
-extern int svec_eeprom_write(struct fmc_device *fmc, int i2c_addr,
-			     uint32_t offset, const void *buf, size_t size);
+extern int svec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
+			    void *buf, size_t size);
+extern int svec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
+			     const void *buf, size_t size);
 
 /* SVEC CSR offsets */
 #define FUN0ADER 	0x7FF63
