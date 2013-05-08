@@ -119,7 +119,6 @@ static int svec_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio,
 
 static int svec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 {
-
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
 	return svec_eeprom_read(fmc, pos, data, len);
