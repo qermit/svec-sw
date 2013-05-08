@@ -16,14 +16,16 @@
 static int svec_i2c_dump;
 module_param_named(i2c_dump, svec_i2c_dump, int, 0444);
 
+static uint32_t core_offset[] = { 0x10000, 0x11000 };
+
 static void i2c_writel(struct fmc_device *fmc, uint32_t val, int offset)
 {
-	fmc_writel(fmc, val, 0x10000 + offset);
+	fmc_writel(fmc, val, core_offset[fmc->slot_id] + offset);
 }
 
 static uint32_t i2c_readl(struct fmc_device *fmc, int offset)
 {
-	return fmc_readl(fmc, 0x10000 + offset);
+	return fmc_readl(fmc, core_offset[fmc->slot_id] + offset);
 }
 
 #define fmc_readl i2c_readl
