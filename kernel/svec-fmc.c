@@ -201,7 +201,7 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 
 	fmc->slot_id = fmc_slot;
 	fmc->device_id = (svec->slot << 6) | fmc_slot;
-	fmc->eeprom_addr = 0x50 + 2 * fmc_slot;
+	fmc->eeprom_addr = 0x50 + 2 * (1-fmc_slot);
 	fmc->memlen = 0x100000;
 
 	/* check golden integrity */
