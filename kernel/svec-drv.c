@@ -294,7 +294,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	return 0;
 }
 
-static int __devexit svec_remove(struct device *pdev, unsigned int ndev)
+static int svec_remove(struct device *pdev, unsigned int ndev)
 {
 	struct svec_dev *svec = dev_get_drvdata(pdev);
 
@@ -370,7 +370,7 @@ int svec_is_present(struct svec_dev *svec)
 
 }
 
-static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
+static int svec_probe(struct device *pdev, unsigned int ndev)
 {
 	struct svec_dev *svec;
 	const char *name;
@@ -471,7 +471,7 @@ failed:
 
 static struct vme_driver svec_driver = {
 	.probe		= svec_probe,
-	.remove		= __devexit_p(svec_remove),
+	.remove		= svec_remove,
 	.driver		= {
 	.name		= DRIVER_NAME,
 	},
