@@ -127,8 +127,6 @@ static int svec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
 	return svec_eeprom_read(fmc, pos, data, len);
-
-	return -ENOTSUPP;
 }
 
 static int svec_write_ee(struct fmc_device *fmc, int pos,
@@ -138,8 +136,6 @@ static int svec_write_ee(struct fmc_device *fmc, int pos,
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
 	return svec_eeprom_write(fmc, pos, data, len);
-
-	return -ENOTSUPP;
 }
 
 static struct fmc_operations svec_fmc_operations = {
