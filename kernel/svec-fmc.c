@@ -212,6 +212,9 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	svec->fmcs[fmc_slot] = fmc;
 
 	/* check golden integrity */
+	/* FIXME: this uses fmc_scan_sdb_tree and de-allocation
+	 * could be wrong at second reprogramming, as it is called
+	 * n times, one per slot */
 	ret = check_golden(fmc);
 	if (ret) {
 		dev_err(svec->dev, "Bad golden, error %d\n", ret);
@@ -257,10 +260,7 @@ failed:
 
 void svec_fmc_destroy(struct svec_dev *svec)
 {
-	if (svec->fmcs) {
-		fmc_device_unregister_n(svec->fmcs, svec->fmcs_n);
-		kfree(svec->fmcs);
-		dev_info(svec->dev, "%d fmc devices unregistered\n",
-						svec->fmcs_n);
-	}
+	fmc_device_unregister_n(svec->fmcs, svec->fmcs_n);
+	dev_info(svec->dev, "%d fmc devices unregistered\n",
+		 svec->fmcs_n);
 }
