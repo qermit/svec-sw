@@ -63,7 +63,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	ret = request_firmware(&fw, gw, dev);
 	if (ret < 0) {
 		dev_warn(dev, "request firmware \"%s\": error %i\n", gw, ret);
-		goto out;
+		return ret;
 	}
 	fmc_free_sdb_tree(fmc);
 	fmc->flags &= ~(FMC_DEVICE_HAS_GOLDEN | FMC_DEVICE_HAS_CUSTOM);
