@@ -55,7 +55,6 @@ struct svec_dev {
 						/* FMC devices */
 	int			fmcs_n;		/* Number of FMC devices */
 	int			irq_count;	/* for mezzanine use too */
-	struct completion	compl;
 	struct gpio_chip	*gpio;
 };
 
