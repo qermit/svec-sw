@@ -17,9 +17,6 @@
 #include "svec.h"
 #include "xloader_regs.h"
 
-#define DRIVER_NAME	"svec"
-#define PFX		DRIVER_NAME ": "
-
 char *svec_fw_name = "fmc/svec_golden.bin";
 
 /* Module parameters */
@@ -421,7 +418,7 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 #else
 	name = dev_name(pdev);
 #endif
-	strlcpy(svec->driver, DRIVER_NAME, sizeof(svec->driver));
+	strlcpy(svec->driver, KBUILD_MODNAME, sizeof(svec->driver));
 	snprintf(svec->description, sizeof(svec->description),
 		"SVEC at VME-A32 slot %d 0x%08x - 0x%08x irqv %d irql %d",
 		svec->slot, svec->slot << 19, svec->vmebase,
@@ -473,7 +470,7 @@ static struct vme_driver svec_driver = {
 	.probe		= svec_probe,
 	.remove		= svec_remove,
 	.driver		= {
-	.name		= DRIVER_NAME,
+	.name		= KBUILD_MODNAME,
 	},
 };
 
