@@ -18,6 +18,7 @@
 #define SVEC_MAX_DEVICES        32
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
 #define SVEC_IRQ_LEVEL	2
+#define SVEC_N_SLOTS	2
 #define SVEC_BASE_LOADER	0x70000
 #define SVEC_VENDOR_ID		0x80030
 
@@ -56,7 +57,8 @@ struct svec_dev {
 	struct list_head	list;
 	unsigned long		irqcount;
 	void			*sub_priv;
-	struct fmc_device	*fmcs;		/* FMC devices */
+	struct fmc_device	*fmcs[SVEC_N_SLOTS];
+						/* FMC devices */
 	int			fmcs_n;		/* Number of FMC devices */
 	int			irq_count;	/* for mezzanine use too */
 	struct completion	compl;

@@ -180,8 +180,15 @@ static int check_golden(struct fmc_device *fmc)
 
 int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 {
-	struct fmc_device *fmc = svec->fmcs + fmc_slot;
+	struct fmc_device *fmc;
 	int ret = 0;
+
+	fmc = kzalloc(sizeof(*fmc), GFP_KERNEL);
+	if (!fmc) {
+		dev_err(svec->dev, "cannot allocate fmc slot %d\n",
+			fmc_slot);
+		return -ENOMEM;
+	}
 
 	/* FIXME: For now, only two mezzanines carrier */
 	if (fmc_slot < 0 || fmc_slot > 1)
@@ -202,6 +209,7 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	fmc->device_id = (svec->slot << 6) | fmc_slot;
 	fmc->eeprom_addr = 0x50 + 2 * (1-fmc_slot);
 	fmc->memlen = 0x100000;
+	svec->fmcs[fmc_slot] = fmc;
 
 #if 0
 	/* check golden integrity */

@@ -397,7 +397,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 	svec->vmebase = vmebase[ndev];
 	svec->vector = vector[ndev];
 	svec->level = SVEC_IRQ_LEVEL; /* Default value */
-	svec->fmcs_n = 2; /* FIXME: Two mezzanines */
+	svec->fmcs_n = SVEC_N_SLOTS; /* FIXME: Two mezzanines */
 	svec->dev = pdev;
 
 	/* Get firmware name */
@@ -407,14 +407,6 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 		svec->fw_name = svec_fw_name; /* Default value */
 		dev_warn(pdev, "'fw_name' parameter not provided,"\
 				" using %s as default\n", svec->fw_name);
-	}
-
-	/* Alloc fmc structs memory */
-	svec->fmcs = kzalloc(svec->fmcs_n * sizeof(struct fmc_device),
-				GFP_KERNEL);
-	if (!svec->fmcs) {
-		error = -ENOMEM;
-		goto failed_mem;
 	}
 
 	/* Map CR/CSR space */
@@ -476,9 +468,6 @@ failed_unmap_crcsr:
 	svec_unmap_window(svec, MAP_CR_CSR);
 
 failed:
-	kfree(svec->fmcs);
-	svec->fmcs = NULL;
-failed_mem:
 	kfree(svec);
 
 	return error;
