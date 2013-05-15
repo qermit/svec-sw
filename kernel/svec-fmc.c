@@ -52,7 +52,12 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	if (!strlen(gw)) { /* use module parameters from the driver */
 		int index;
 
-		index = 0; /* FIXME: check what this is */
+		/*
+		 * FIXME: this should come from a call to validate.
+		 * if the driver uses FMC_PARAM_BUSID/FMC_PARAM_GATEWARE.
+		 * Please check docs and spec-sw (wr-nic).
+		 */
+		index = 0;
 
 		gw = drv->gw_val[index];
 		if (!gw)
