@@ -299,7 +299,7 @@ static int svec_remove(struct device *pdev, unsigned int ndev)
 
 	svec_unmap_window(svec, MAP_CR_CSR);
 	svec_unmap_window(svec, MAP_REG);
-
+	svec_remove_sysfs_files(svec);
 	kfree(svec);
 
 	dev_info(pdev, "removed\n");
@@ -430,13 +430,13 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 	error = svec_create_sysfs_files(svec);
 	if (error) {
 		dev_err(pdev, "Error creating sysfs files\n");
-		goto failed;
+		goto failed_unmap_crcsr;
 	}
 
 	/* Load the golden FPGA binary to read the eeprom */
 	error = svec_load_fpga_file(svec, svec->fw_name);
 	if (error)
-		goto failed;
+		goto failed_sysfs;
 
 	/* configure and activate function 0 */
 	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, vmebase[ndev],
@@ -445,7 +445,7 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 	/* Map A32 space */
 	error = svec_map_window(svec, MAP_REG);
 	if (error)
-		goto failed;
+		goto failed_sysfs;
 
 	error = svec_fmc_create(svec);
 	if (error) {
@@ -457,6 +457,8 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 
 failed_unmap:
 	svec_unmap_window(svec, MAP_REG);
+failed_sysfs:
+	svec_remove_sysfs_files(svec);
 failed_unmap_crcsr:
 	svec_unmap_window(svec, MAP_CR_CSR);
 
