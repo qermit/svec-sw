@@ -51,7 +51,6 @@ struct svec_dev {
 
 	/* struct work_struct	work; */
 	unsigned long		irqcount;
-	void			*sub_priv;
 	struct fmc_device	*fmcs[SVEC_N_SLOTS];
 						/* FMC devices */
 	int			fmcs_n;		/* Number of FMC devices */
