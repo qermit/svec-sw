@@ -50,7 +50,6 @@ struct svec_dev {
 	int			already_reprogrammed;
 
 	/* struct work_struct	work; */
-	struct list_head	list;
 	unsigned long		irqcount;
 	void			*sub_priv;
 	struct fmc_device	*fmcs[SVEC_N_SLOTS];
