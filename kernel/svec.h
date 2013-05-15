@@ -50,7 +50,6 @@ struct svec_dev {
 	int			already_reprogrammed;
 
 	/* struct work_struct	work; */
-	const struct firmware	*fw;
 	struct list_head	list;
 	unsigned long		irqcount;
 	void			*sub_priv;
