@@ -203,12 +203,17 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	fmc->eeprom_addr = 0x50 + 2 * (1-fmc_slot);
 	fmc->memlen = 0x100000;
 
+#if 0
 	/* check golden integrity */
-	ret = check_golden(fmc);
-	if (ret) {
-		dev_err(svec->dev, "Bad golden, error %d\n", ret);
-		return ret;
+	/* FIXME: this uses fmc_scan_sdb_tree and de-allocation
+	 * could be wrong at second reprogramming, as it is called
+	 * n times, one per slot */
+	error = check_golden(fmc);
+	if (error) {
+		dev_err(svec->dev, "Bad golden, error %d\n", error);
+		return error;
 	}
+#endif
 
 	ret = svec_i2c_init(fmc, fmc_slot);
 	if (ret) {
