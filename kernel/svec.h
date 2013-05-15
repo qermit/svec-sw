@@ -35,20 +35,20 @@ enum svec_map_win {
 
 /* Our device structure */
 struct svec_dev {
-	int 	                lun;
+	int			lun;
 	int			slot;
 	uint32_t		vmebase;
-	int 			vector;
+	int			vector;
 	int			level;
 
 	char			*submod_name;
 	char			*fw_name;
-	struct device           *dev;
+	struct device		*dev;
 	struct cdev		cdev;
-	char 			driver[16];
+	char			driver[16];
 	char			description[80];
 
-	struct vme_mapping 	*map[2];
+	struct vme_mapping	*map[2];
 	/* FIXME: Workaround to avoid reprogram on second fd */
 	int			already_reprogrammed;
 
@@ -70,7 +70,8 @@ extern int svec_is_bootloader_active(struct svec_dev *svec);
 extern int svec_bootloader_unlock (struct svec_dev *svec);
 extern int svec_load_fpga(struct svec_dev *svec, const void *data, int size);
 extern int svec_load_fpga_file(struct svec_dev *svec, const char *name);
-extern void svec_setup_csr_fa0(void *base, u32 vme, unsigned vector, unsigned level);
+extern void svec_setup_csr_fa0(void *base, u32 vme, unsigned vector,
+			       unsigned level);
 extern int svec_unmap_window(struct svec_dev *svec, enum svec_map_win map_type);
 extern int svec_map_window( struct svec_dev *svec, enum svec_map_win map_type);
 
@@ -91,7 +92,7 @@ extern int svec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 			     const void *buf, size_t size);
 
 /* SVEC CSR offsets */
-#define FUN0ADER 	0x7FF63
+#define FUN0ADER	0x7FF63
 #define INT_LEVEL	0x7ff5b
 #define INTVECTOR	0x7ff5f
 #define WB_32_64	0x7ff33
@@ -107,7 +108,7 @@ extern int svec_gpio_init(struct fmc_device *fmc);
 extern void svec_gpio_exit(struct fmc_device *fmc);
 
 /* Functions in svec-sysfs.c */
-extern int svec_create_sysfs_files (struct svec_dev *card);
-extern void svec_remove_sysfs_files (struct svec_dev *card);
+extern int svec_create_sysfs_files(struct svec_dev *card);
+extern void svec_remove_sysfs_files(struct svec_dev *card);
 
 #endif /* __SVEC_H__ */
