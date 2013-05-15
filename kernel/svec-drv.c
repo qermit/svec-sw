@@ -138,7 +138,7 @@ int svec_bootloader_unlock(struct svec_dev *svec)
 				SVEC_BASE_LOADER + XLDR_REG_BTRIGR;
 
 	/* Magic sequence: unlock bootloader mode, disable application FPGA */
-	for (i=0; i<8; i++)
+	for (i = 0; i < 8; i++)
 		iowrite32(cpu_to_be32(boot_seq[i]), addr);
 
 	dev_info(dev, "Wrote unlock sequence at %lx\n", (unsigned long)addr);
@@ -229,7 +229,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	u64 timeout;
 
 	/* Check if we have something to do... */
-	if ((data == NULL) || (size == 0)){
+	if ((data == NULL) || (size == 0)) {
 		dev_err(dev, "%s: data to be load is NULL\n", __func__);
 		return -EINVAL;
 	}
@@ -254,10 +254,10 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 				loader_addr + XLDR_REG_CSR);
 
 	i = 0;
-	while(i < size) {
+	while (i < size) {
 		rval = be32_to_cpu(ioread32(loader_addr + XLDR_REG_FIFO_CSR));
 		if (!(rval & XLDR_FIFO_CSR_FULL)) {
-			n = (size-i>4?4:size-i);
+			n = (size - i > 4 ? 4 : size - i);
 			xldr_fifo_r0 = (n - 1) |
 					((n<4) ? XLDR_FIFO_R0_XLAST : 0);
 			xldr_fifo_r1 = htonl(data[i>>2]);
@@ -266,7 +266,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 					loader_addr + XLDR_REG_FIFO_R0);
 			iowrite32(cpu_to_be32(xldr_fifo_r1),
 					loader_addr + XLDR_REG_FIFO_R1);
-			i+=n;
+			i += n;
 		}
 	}
 
@@ -274,7 +274,7 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	timeout = get_jiffies_64() + 2 * HZ;
 	while (time_before64(get_jiffies_64(), timeout)) {
 		rval = be32_to_cpu(ioread32(loader_addr + XLDR_REG_CSR));
-		if (rval & XLDR_CSR_DONE) 
+		if (rval & XLDR_CSR_DONE)
 			break;
 		msleep(1);
 	}
@@ -346,14 +346,14 @@ int svec_is_present(struct svec_dev *svec)
 	uint32_t idc;
 	void *addr;
 
-	/* Check for bootloader */ 
+	/* Check for bootloader */
 	if (svec_is_bootloader_active(svec)) {
 		return 1;
 	}
 
 	/* Ok, maybe there is a svec, but bootloader is not active.
 	In such case, a CR/CSR with a valid manufacturer ID should exist*/
-	
+
 	addr = svec->map[MAP_CR_CSR]->kernel_va + VME_VENDOR_ID_OFFSET;
 
 	idc = be32_to_cpu(ioread32(addr)) << 16;
@@ -381,7 +381,7 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 
 	if (lun[ndev] >= SVEC_MAX_DEVICES) {
 		dev_err(pdev, "Card lun %d out of range [0..%d]\n",
-			lun[ndev], SVEC_MAX_DEVICES -1);
+			lun[ndev], SVEC_MAX_DEVICES - 1);
 		return -EINVAL;
 	}
 
@@ -411,11 +411,10 @@ static int __devinit svec_probe(struct device *pdev, unsigned int ndev)
 
 	/* Map CR/CSR space */
 	error = svec_map_window(svec, MAP_CR_CSR);
-	if (error) 
+	if (error)
 		goto failed;
 
-	if (!svec_is_present(svec))
-	{
+	if (!svec_is_present(svec)) {
 		error = -EINVAL;
 		goto failed_unmap_crcsr;
 	}
@@ -487,9 +486,10 @@ static int __init svec_init(void)
 
 	/* Check that all insmod argument vectors are the same length */
 	if (lun_num != slot_num || lun_num != vmebase_num ||
-        	lun_num != vector_num) {
-	        pr_err("%s: The number of parameters doesn't match\n", __func__);
-	        return -EINVAL;
+		lun_num != vector_num) {
+		pr_err("%s: The number of parameters doesn't match\n",
+		       __func__);
+		return -EINVAL;
 	}
 
 	error = vme_register_driver(&svec_driver, lun_num);
