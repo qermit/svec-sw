@@ -94,10 +94,6 @@ extern int svec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 #define RESET_CORE	0x80
 #define ENABLE_CORE	0x10
 
-/* Functions in svec-gpio.c */
-extern int svec_gpio_init(struct fmc_device *fmc);
-extern void svec_gpio_exit(struct fmc_device *fmc);
-
 /* Functions in svec-sysfs.c */
 extern int svec_create_sysfs_files(struct svec_dev *card);
 extern void svec_remove_sysfs_files(struct svec_dev *card);
