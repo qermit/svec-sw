@@ -46,10 +46,6 @@ MODULE_PARM_DESC(vector, "IRQ vector");
 module_param_array(lun, int, &lun_num, S_IRUGO);
 MODULE_PARM_DESC(lun, "Index value for SVEC card");
 
-static const struct file_operations svec_fops = {
-	.owner = THIS_MODULE,
-};
-
 int svec_map_window(struct svec_dev *svec, enum svec_map_win map_type)
 {
 	struct device *dev = svec->dev;
