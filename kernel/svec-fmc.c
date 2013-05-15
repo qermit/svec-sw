@@ -184,16 +184,15 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	struct fmc_device *fmc;
 	int ret = 0;
 
+	if (fmc_slot >= SVEC_N_SLOTS)
+		return -EINVAL;
+
 	fmc = kzalloc(sizeof(*fmc), GFP_KERNEL);
 	if (!fmc) {
 		dev_err(svec->dev, "cannot allocate fmc slot %d\n",
 			fmc_slot);
 		return -ENOMEM;
 	}
-
-	/* FIXME: For now, only two mezzanines carrier */
-	if (fmc_slot < 0 || fmc_slot > 1)
-		return -EINVAL;
 
 	fmc->version = FMC_VERSION;
 	fmc->carrier_name = "SVEC";
@@ -210,7 +209,6 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	fmc->device_id = (svec->slot << 6) | fmc_slot;
 	fmc->eeprom_addr = 0x50 + 2 * (1-fmc_slot);
 	fmc->memlen = 0x100000;
-	svec->fmcs[fmc_slot] = fmc;
 
 	/* check golden integrity */
 	/* FIXME: this uses fmc_scan_sdb_tree and de-allocation
@@ -219,15 +217,18 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	ret = check_golden(fmc);
 	if (ret) {
 		dev_err(svec->dev, "Bad golden, error %d\n", ret);
+		kfree(fmc);
 		return ret;
 	}
 
 	ret = svec_i2c_init(fmc, fmc_slot);
 	if (ret) {
 		dev_err(svec->dev, "Error %d on svec i2c init", ret);
+		kfree(fmc);
 		return ret;
 	}
 
+	svec->fmcs[fmc_slot] = fmc;
 	dev_info(svec->dev, "ready to create fmc device_id 0x%x\n",
 			fmc->device_id);
 
@@ -255,6 +256,7 @@ int svec_fmc_create(struct svec_dev *svec)
 	dev_info(svec->dev, "%d fmc devices registered\n", svec->fmcs_n);
 
 failed:
+	/* FIXME: free fmc allocations. */
 	return error;
 
 }
