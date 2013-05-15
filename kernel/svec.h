@@ -41,7 +41,6 @@ struct svec_dev {
 	int			vector;
 	int			level;
 
-	char			*submod_name;
 	char			*fw_name;
 	struct device		*dev;
 	struct cdev		cdev;
