@@ -9,6 +9,7 @@
 */
 #include <linux/device.h>
 #include <linux/ctype.h>
+#include <linux/stat.h>
 #include "svec.h"
 
 static ssize_t svec_show_bootloader_active(struct device *pdev,
