@@ -10,7 +10,6 @@
 #ifndef __SVEC_H__
 #define __SVEC_H__
 
-#include <linux/cdev.h>
 #include <linux/firmware.h>
 #include <linux/fmc.h>
 #include <vmebus.h>
@@ -43,7 +42,6 @@ struct svec_dev {
 
 	char			*fw_name;
 	struct device		*dev;
-	struct cdev		cdev;
 	char			driver[16];
 	char			description[80];
 
