@@ -144,7 +144,7 @@ int svec_is_bootloader_active(struct svec_dev *svec)
 {
 	struct device *dev = svec->dev;
 	uint32_t idc;
-	char *buf = (char *)&idc;
+	char buf[5];
 	void *addr;
 
 	/* Check if CS/CSR window is mapped */
@@ -159,6 +159,8 @@ int svec_is_bootloader_active(struct svec_dev *svec)
 	idc = be32_to_cpu(ioread32(addr));
 	idc = htonl(idc);
 
+	strncpy(buf, (char *)&idc, 4);
+	buf[4] = 0;
 	if (strncmp(buf, "SVEC", 4) == 0) {
 		dev_info(dev, "IDCode value %x [%s].\n", idc, buf);
 		/* Bootloader active. Unlocked */
