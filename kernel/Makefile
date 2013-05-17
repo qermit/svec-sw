@@ -1,4 +1,7 @@
 # Assign sensible defaults, but allow overriding with environment variables.
+
+LINUX=/acc/sys/L865/usr/src/kernels/2.6.24.7-rt27
+
 CPU	?= L865
 KVER	?= 2.6.24.7-rt27
 KVER	?= 3.2.33-rt50
@@ -19,7 +22,7 @@ obj-m := svec.o
 svec-objs := svec-drv.o
 svec-objs += svec-sysfs.o
 svec-objs += svec-fmc.o
-svec-objs += svec-i2c.o
+svec-objs += i2c.o
 
 all: modules
 

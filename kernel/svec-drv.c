@@ -508,6 +508,6 @@ static void __exit svec_exit(void)
 module_init(svec_init);
 module_exit(svec_exit);
 
-MODULE_AUTHOR("");
+MODULE_AUTHOR("Juan David Gonzalez Cobas");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("svec driver");

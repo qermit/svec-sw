@@ -164,7 +164,7 @@ static int check_golden(struct fmc_device *fmc)
 		dev_err(svec->dev, "unsexpected vendor in SDB\n");
 		return -ENODEV;
 	}
-	if (fmc_readl(fmc, 0x60) != 0x123c5443) {
+	if (fmc_readl(fmc, 0x60) != 0x676f6c64) {
 		dev_err(svec->dev, "unexpected device in SDB\n");
 		return -ENODEV;
 	}
@@ -201,7 +201,7 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 
 	fmc->slot_id = fmc_slot;
 	fmc->device_id = (svec->slot << 6) | fmc_slot;
-	fmc->eeprom_addr = 0x50 + 2 * (1-fmc_slot);
+	fmc->eeprom_addr = 0x50 + 2 * fmc_slot;
 	fmc->memlen = 0x100000;
 
 	/* check golden integrity */
@@ -215,7 +215,7 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 		return ret;
 	}
 
-	ret = svec_i2c_init(fmc, fmc_slot);
+	ret = svec_i2c_init(fmc);
 	if (ret) {
 		dev_err(svec->dev, "Error %d on svec i2c init", ret);
 		kfree(fmc);
