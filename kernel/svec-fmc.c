@@ -41,11 +41,6 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	struct device *dev = fmc->hwdev;
 	int ret = 0;
 
-	if (svec->already_reprogrammed) {
-		dev_info(fmc->hwdev, "Already programmed\n");
-		return ret;
-	}
-
 	if (!gw)
 		gw = svec_fw_name;
 
@@ -87,7 +82,6 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, svec->vmebase,
 				svec->vector, svec->level);
 
-	svec->already_reprogrammed = 1;
 out:
 	release_firmware(fw);
 	if (ret < 0)

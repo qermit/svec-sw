@@ -46,8 +46,6 @@ struct svec_dev {
 	char			description[80];
 
 	struct vme_mapping	*map[2];
-	/* FIXME: Workaround to avoid reprogram on second fd */
-	int			already_reprogrammed;
 
 	/* struct work_struct	work; */
 	unsigned long		irqcount;
