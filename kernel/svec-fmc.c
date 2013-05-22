@@ -149,7 +149,7 @@ static int check_golden(struct fmc_device *fmc)
 {
 	struct svec_dev *svec = fmc->carrier_data;
 	int ret;
-	uint32_t magic;
+	uint32_t magic, vendor, device;
 
 	/* poor man's SDB */
 	magic = fmc_readl(fmc, 0x00);
@@ -160,11 +160,13 @@ static int check_golden(struct fmc_device *fmc)
 	if ( (ret = fmc_scan_sdb_tree(fmc, 0x0)) < 0)
 		return -ENODEV;
 
-	if (fmc_readl(fmc, 0x5c) != 0x0000ce42) {
+	vendor = fmc_readl(fmc, 0x5c);
+	if (vendor != 0x0000ce42) {
 		dev_err(svec->dev, "unsexpected vendor in SDB\n");
 		return -ENODEV;
 	}
-	if (fmc_readl(fmc, 0x60) != 0x676f6c64) {
+	device = fmc_readl(fmc, 0x60);
+	if (device != 0x676f6c64) {
 		dev_err(svec->dev, "unexpected device in SDB\n");
 		return -ENODEV;
 	}
