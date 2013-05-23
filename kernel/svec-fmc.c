@@ -251,7 +251,10 @@ int svec_fmc_create(struct svec_dev *svec)
 		dev_err(svec->dev, "Error registering fmc devices\n");
 		goto failed;
 	}
-	dev_info(svec->dev, "%d fmc devices registered\n", svec->fmcs_n);
+	/* FIXME: how do we retrieve the actual number of registered
+	 * devices?
+	 */
+	dev_info(svec->dev, "fmc devices registered\n");
 
 failed:
 	/* FIXME: free fmc allocations. */
