@@ -10,9 +10,12 @@ LINUX ?= "/acc/sys/$(CPU)/usr/src/kernels/$(KVER)"
 FMC_DRV ?= $(shell ../check-fmc-bus)
 export FMC_DRV
 
+GIT_VERSION = $(shell git describe --dirty --long --tags)
+
 ccflags-y += -I$(FMC_DRV)/include
 ccflags-y += -I/acc/dsc/src/drivers/coht/vmebridge/include
 ccflags-y += -DDEBUG
+ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.vme
 KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.fmc
@@ -29,7 +32,10 @@ all: modules
 .PHONY: all modules clean help install modules_install
 
 modules help install modules_install:
-	$(MAKE) -C $(LINUX) M=$(shell pwd) CPU=$(CPU) KVER=$(KVER) $@
+	echo $(GIT_VERSION)
+	$(MAKE) -C $(LINUX) M=$(shell pwd) CPU=$(CPU) \
+		KVER=$(KVER) GIT_VERSION=$(GIT_VERSION) \
+		$@
 
 # be able to run the "clean" rule even if $(LINUX) is not valid
 clean:

@@ -510,4 +510,5 @@ module_exit(svec_exit);
 
 MODULE_AUTHOR("Juan David Gonzalez Cobas");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(GIT_VERSION);
 MODULE_DESCRIPTION("svec driver");
