@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/fmc-sdb.h>
+#include <linux/jhash.h>
 #include "svec.h"
 
 static int svec_show_sdb;
@@ -39,8 +40,10 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	const struct firmware *fw;
 	struct svec_dev *svec = fmc->carrier_data;
 	struct device *dev = fmc->hwdev;
+	uint32_t fw_hash;
 	int ret = 0;
 
+	/* If no firmware filename is provided, load default */
 	if (!gw)
 		gw = svec_fw_name;
 
@@ -65,23 +68,32 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		dev_warn(dev, "request firmware \"%s\": error %i\n", gw, ret);
 		return ret;
 	}
-	fmc_free_sdb_tree(fmc);
-	fmc->flags &= ~(FMC_DEVICE_HAS_GOLDEN | FMC_DEVICE_HAS_CUSTOM);
-	ret = svec_load_fpga(svec, fw->data, fw->size);
-	if (ret <0) {
-		dev_err(dev, "write firmware \"%s\": error %i\n", gw, ret);
+	
+	/* Hash firmware bitstream */
+	fw_hash = jhash(fw->data, fw->size,0);
+	if (fw_hash == svec->fw_hash) {
+		dev_info(dev, "card already programmed with \"%s\" [%x]\n", gw, fw_hash);
 		goto out;
 	}
-	if (gw == svec_fw_name)
-		fmc->flags |= FMC_DEVICE_HAS_GOLDEN;
-	else
-		fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
+		
+	/* FIXME?? */
+	fmc_free_sdb_tree(fmc);
+
+	/* load the firmware */
+	ret = svec_load_fpga(svec, fw->data, fw->size);
+	if (ret <0) {
+		dev_err(dev, "error %i programming firmware \"%s\"\n", ret, gw);
+		goto out;
+	}
 
 	/* configure and activate function 0 */
+	/* FIXME: Only once?? */
 	dev_info(fmc->hwdev, "svec-fmc: setup fa0\n");
 	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, svec->vmebase,
 				svec->vector, svec->level);
 
+	/* Store firmware hash to avoid reprogram */
+	svec->fw_hash = fw_hash;
 out:
 	release_firmware(fw);
 	if (ret < 0)

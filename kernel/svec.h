@@ -44,7 +44,7 @@ struct svec_dev {
 	struct device		*dev;
 	char			driver[16];
 	char			description[80];
-
+	uint32_t		fw_hash;	
 	struct vme_mapping	*map[2];
 
 	/* struct work_struct	work; */
