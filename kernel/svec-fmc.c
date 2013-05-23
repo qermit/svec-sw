@@ -68,6 +68,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		dev_warn(dev, "request firmware \"%s\": error %i\n", gw, ret);
 		return ret;
 	}
+	fmc_free_sdb_tree(fmc);
 	
 	/* Hash firmware bitstream */
 	fw_hash = jhash(fw->data, fw->size,0);
@@ -75,8 +76,6 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		dev_info(dev, "card already programmed with \"%s\" [%x]\n", gw, fw_hash);
 		goto out;
 	}
-		
-	fmc_free_sdb_tree(fmc);
 
 	/* load the firmware */
 	ret = svec_load_fpga(svec, fw->data, fw->size);
