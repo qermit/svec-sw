@@ -17,7 +17,7 @@
 #include "svec.h"
 #include "xloader_regs.h"
 
-char *svec_fw_name = "fmc/svec_golden.bin";
+char *svec_fw_name = "fmc/svec-golden.bin";
 
 /* Module parameters */
 static int  slot[SVEC_MAX_DEVICES];
