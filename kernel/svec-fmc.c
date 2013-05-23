@@ -240,8 +240,6 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	return ret;
 }
 
-static uint8_t svec_void_eeprom[10];
-
 int svec_fmc_create(struct svec_dev *svec)
 {
 	int i;
