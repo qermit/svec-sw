@@ -32,7 +32,6 @@ all: modules
 .PHONY: all modules clean help install modules_install
 
 modules help install modules_install:
-	echo $(GIT_VERSION)
 	$(MAKE) -C $(LINUX) M=$(shell pwd) CPU=$(CPU) \
 		KVER=$(KVER) GIT_VERSION=$(GIT_VERSION) \
 		$@
