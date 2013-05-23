@@ -76,7 +76,6 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		goto out;
 	}
 		
-	/* FIXME?? */
 	fmc_free_sdb_tree(fmc);
 
 	/* load the firmware */
@@ -87,7 +86,6 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	}
 
 	/* configure and activate function 0 */
-	/* FIXME: Only once?? */
 	dev_info(fmc->hwdev, "svec-fmc: setup fa0\n");
 	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, svec->vmebase,
 				svec->vector, svec->level);
