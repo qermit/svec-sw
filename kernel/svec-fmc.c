@@ -243,14 +243,6 @@ int svec_fmc_create(struct svec_dev *svec)
 		error = svec_fmc_prepare(svec, i);
 		if (error)
 			goto failed;
-		/* FIXME: this kludge must be replaced by a
-		 * proper copy from a template; all this code
-		 * is badly broken */
-		if (svec->fmcs[i]->flags & FMC_DEVICE_NO_MEZZANINE) {
-			svec->fmcs[i]->eeprom = svec_void_eeprom;
-			svec->fmcs[i]->eeprom_len = sizeof(svec_void_eeprom);
-			svec->fmcs[i]->eeprom_addr = 0xff;
-		}
 	}
 
 	/* fmc device creation */
