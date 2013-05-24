@@ -81,7 +81,7 @@ static void set_sda(struct fmc_device *fmc, int val)
 	if (val)
 		reg |= GLD_I2CR_SDA_OUT;
 	golden_writel(fmc, reg, 0);
-	udelay(30); /* FIXME: is this enough? */
+	udelay(3); /* FIXME: is this enough? */
 }
 
 static void set_scl(struct fmc_device *fmc, int val)
@@ -92,7 +92,7 @@ static void set_scl(struct fmc_device *fmc, int val)
 	if (val)
 		reg |= GLD_I2CR_SCL_OUT;
 	golden_writel(fmc, reg, 0);
-	udelay(30);	/* FIXME: is this enough? */
+	udelay(3);	/* FIXME: is this enough? */
 }
 
 static int get_sda(struct fmc_device *fmc)
