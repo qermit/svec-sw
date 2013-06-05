@@ -51,9 +51,7 @@ static inline int mezzanine_present(struct fmc_device *fmc)
 	uint32_t presence;
 
 	presence = fmc_readl(fmc, GLD_I2C_CORE_BASE + GLD_REG_CSR);
-	/*printk("presence: 0x%08x read from 0x%08x\n", presence, GLD_I2C_CORE_BASE + GLD_REG_CSR);*/
 	presence = GLD_CSR_FMC_PRESENT_R(presence) & (1<<fmc->slot_id);
-	/*printk("presence: 0x%08x\n", presence);*/
 	return presence;
 }
 
@@ -178,7 +176,6 @@ void mi2c_scan(struct fmc_device *fmc)
 	}
 }
 
-/* FIXME: this is very inefficient: read several bytes in a row instead */
 int svec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 		void *buf, size_t size)
 {
@@ -201,7 +198,6 @@ int svec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 	while (size--) {
 		mi2c_get_byte(fmc, &c, size != 0);
 		*buf8++ = c;
-		/*printk("read 0x%08x, %4i to go\n", c, size);*/
 	}
 	mi2c_stop(fmc);
 	return ret;
