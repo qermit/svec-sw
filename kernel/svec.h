@@ -12,7 +12,7 @@
 
 #include <linux/firmware.h>
 #include <linux/fmc.h>
-#include <vmebus.h>
+#include "vmebus.h"
 
 #define SVEC_MAX_DEVICES        32
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }

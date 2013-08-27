@@ -1,6 +1,6 @@
 # Assign sensible defaults, but allow overriding with environment variables.
 
-LINUX=/acc/sys/L865/usr/src/kernels/2.6.24.7-rt27
+# LINUX=/acc/sys/L865/usr/src/kernels/2.6.24.7-rt27
 
 CPU	?= L865
 KVER	?= 2.6.24.7-rt27
@@ -13,7 +13,6 @@ export FMC_DRV
 GIT_VERSION = $(shell git describe --dirty --long --tags)
 
 ccflags-y += -I$(FMC_DRV)/include
-ccflags-y += -I/acc/dsc/src/drivers/coht/vmebridge/include
 ccflags-y += -DDEBUG
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
