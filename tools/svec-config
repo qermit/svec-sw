@@ -1,0 +1,187 @@
+#!/usr/bin/python
+
+#
+# Copyright (C) 2013 CERN (www.cern.ch)
+# Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
+#
+# Released according to the GNU GPL, version 2 or any later version
+#
+# svec-config: a userspace utility for configuring VME interface 
+# of SVEC (Simple VME FMC carrier) boards.
+#
+
+import glob
+import sys
+import getopt
+import os
+
+cards=[]
+
+def write_sysfs(lun, attr, value):
+    f=open("/sys/bus/vme/devices/svec.%d/%s" % (lun, attr),"w")
+    f.write(str(value) + "\n");
+    f.close()
+
+def read_sysfs(lun, attr):
+    f=open("/sys/bus/vme/devices/svec.%d/%s" % (lun, attr),"r")
+    rv = int(f.read(),0);
+    f.close()
+    return rv
+    
+
+class SVEC:
+    def __init__(self,lun):
+	self.lun = lun
+	self.read_config()
+
+    def read_config(self):
+	self.conf_valid = True
+	self.conf_updated = False
+	self.slot = read_sysfs(self.lun, "slot")
+	self.vme_base = read_sysfs(self.lun, "vme_base")
+	if(self.vme_base == 0xffffffff):
+	    self.conf_valid = 0
+	self.vme_size = read_sysfs(self.lun, "vme_size")
+	self.vme_am = read_sysfs(self.lun, "vme_am")
+	self.interrupt_vector = read_sysfs(self.lun, "interrupt_vector")
+	if(self.interrupt_vector == 0xffffffff):
+	    self.conf_valid = 0
+	self.interrupt_level = read_sysfs(self.lun, "interrupt_level")
+	self.use_fmc = read_sysfs(self.lun, "use_fmc")
+
+    def set_am(self, am):
+        if(am == "A24"):
+    	    self.vme_am = 0x39
+	elif(am == "A32"):
+	    self.vme_am = 0x09
+	else:
+    	    raise Exception("unsupported address modifier: %s" % am)
+    	self.conf_updated = True
+
+    def set_size(self, size):
+	if( size <= 0x10000 or size > 0x1000000 ):
+	    raise Exception("VME window size out of range")
+	self.vme_size = size
+    	self.conf_updated = True
+
+    def set_base(self, base):
+	if( base < 0x0 or base > 0xfffe0000 ):
+	    raise Exception("VME window base out of range")
+	self.vme_base = base
+    	self.conf_updated = True
+
+    def set_vector(self, v):
+    	if( v < 0x0 or v > 0xff ):
+	    raise Exception("VME interrupt vector out of range")
+	self.interrupt_vector = v
+    	self.conf_updated = True
+
+    def set_level(self, l):
+    	if( l < 0x0 or l > 0x7 ):
+	    raise Exception("VME interrupt level out of range")
+	self.interrupt_level = l
+    	self.conf_updated = True
+
+    def enable_fmcs(self, e):
+	self.use_fmc = e 
+    	self.conf_updated = True
+    
+    def commit(self):
+	if not self.conf_updated:
+	    return # nothing changed, nothing to commit
+	write_sysfs(self.lun, "vme_base", "0x%08x" % self.vme_base)
+	write_sysfs(self.lun, "vme_size", "0x%08x" % self.vme_size)
+	write_sysfs(self.lun, "vme_am", "0x%02x" % self.vme_am)
+	write_sysfs(self.lun, "interrupt_vector", "0x%02x" % self.interrupt_vector)
+	write_sysfs(self.lun, "interrupt_level", "%d" % self.interrupt_level)
+	write_sysfs(self.lun, "use_fmc", "%d" % self.use_fmc)
+	write_sysfs(self.lun, "configured", "1") # commit new config!
+    
+    def __str__(self):
+	am_map = {0x9 : "A32", 0x39 : "A24" }
+	
+	s = "svec.%d: slot %d, " % (self.lun, self.slot)
+	if(not self.conf_valid):
+	    s += "VME unconfigured"
+	    return s
+	s += am_map[self.vme_am];
+	s += ", 0x%08x-0x%08x, vector 0x%x, level %d" % (self.vme_base, self.vme_base + self.vme_size - 1, self.interrupt_vector, self.interrupt_level)
+	
+	if (self.use_fmc == 0):
+    	    s += " (FMC drivers disabled)"
+    	    
+        return s
+        
+def find_svecs():
+    for p in glob.glob("/sys/bus/vme/devices/svec.*"):
+	lun = int(p.split('.')[1])
+	cards.append ( SVEC(lun ))
+
+def dump_svecs():
+    print("%d card(s) found:" % len(cards))
+    for c in cards:
+	print(str(c))
+
+
+def find_card(lun, slot):
+    if(lun == None and slot == None):
+	raise Exception("need either LUN or slot number")
+    
+    for c in cards:
+	if(c.lun == lun or c.slot == slot):
+	    return c
+    raise Exception("no card matching LUN/slot found")
+
+def __main__():
+    try:
+	find_svecs()
+	
+	optlist, args = getopt.getopt(sys.argv[1:], 'hlu:s:a:b:f:w:k:v:')
+    
+        if len(optlist) == 0:
+    	    print("usage: %s [-h] [-l] [-u lun] [-s slot] [-a am] [-b base] [-w size] [-v vector] [-k level] [-f enable]" % sys.argv[0])
+    	    return 0
+    	
+	for o,a in optlist:
+	    if(o == "-h"):
+		print("svec-config: a tool for configuring VME interface of SVEC cards")
+    		print("usage: %s [-h] [-l] [-u lun] [-s slot] [-a am] [-b base] [-w size] [-v vector] [-k level] [-f enable]" % sys.argv[0])
+		print(" -h:             prints this message")
+		print(" -l:             lists all SVECs in the system")
+		print(" -u:             specifies the LUN of the card to be configured")
+		print(" -s:             specifies the slot of the card to be configured")
+		print(" -a modifier:    specifies the address modifier to use (A24 or A32)")
+		print(" -b address:     specifies the VME base address")
+		print(" -w size:        specifies the VME window size")
+		print(" -v vector:      specifies the VME interrupt vector")
+		print(" -k level:       specifies the VME interrupt level")
+		print(" -f enable:      enables/disables probing FMC kernel drivers for given carrier\n")
+		return 0
+	
+
+	    elif (o == "-u"):
+    		card = find_card(int(a,0), None)
+	    elif (o == "-s"):
+    		card = find_card(None, int(a,0))
+    	    elif (o == "-a"):
+		card.set_am(a)
+	    elif (o == "-w"):
+		card.set_size(int(a, 0))
+	    elif (o == "-b"):
+		card.set_base(int(a, 0))
+	    elif (o == "-v"):
+		card.set_vector(int(a,0))
+	    elif (o == "-k"):
+		card.set_level(int(a,0))
+	    elif (o == "-f"):
+		card.enable_fmcs(int(a, 0))
+	    elif (o == "-l"):
+	        dump_svecs()
+		return 0
+
+	card.commit()
+	
+    except:
+	print("Error: %s" % sys.exc_info()[1])
+
+__main__()
