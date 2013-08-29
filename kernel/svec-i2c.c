@@ -22,10 +22,10 @@
 
 /* re-definitions for fields in golden core */
 #define GLD_I2C_CORE_BASE	0x10000
-#define GLD_I2CR_SCL_OUT	GLD_I2CR0_SCL_OUT	
-#define GLD_I2CR_SDA_OUT	GLD_I2CR0_SDA_OUT	
-#define GLD_I2CR_SCL_IN		GLD_I2CR0_SCL_IN	
-#define GLD_I2CR_SDA_IN		GLD_I2CR0_SDA_IN	
+#define GLD_I2CR_SCL_OUT	GLD_I2CR0_SCL_OUT
+#define GLD_I2CR_SDA_OUT	GLD_I2CR0_SDA_OUT
+#define GLD_I2CR_SCL_IN		GLD_I2CR0_SCL_IN
+#define GLD_I2CR_SDA_IN		GLD_I2CR0_SDA_IN
 
 static int svec_i2c_dump;
 module_param_named(i2c_dump, svec_i2c_dump, int, 0444);
@@ -51,7 +51,7 @@ static inline int mezzanine_present(struct fmc_device *fmc)
 	uint32_t presence;
 
 	presence = fmc_readl(fmc, GLD_I2C_CORE_BASE + GLD_REG_CSR);
-	presence = GLD_CSR_FMC_PRESENT_R(presence) & (1<<fmc->slot_id);
+	presence = GLD_CSR_FMC_PRESENT_R(presence) & (1 << fmc->slot_id);
 	return presence;
 }
 
@@ -62,7 +62,7 @@ static void dumpstruct(char *name, void *ptr, int size)
 	unsigned char *p = ptr;
 
 	printk("%s: (size 0x%x)\n", name, size);
-	for (i = 0; i < size; ) {
+	for (i = 0; i < size;) {
 		printk("%02x", p[i]);
 		i++;
 		printk(i & 3 ? " " : i & 0xf ? "  " : "\n");
@@ -79,7 +79,7 @@ static void set_sda(struct fmc_device *fmc, int val)
 	if (val)
 		reg |= GLD_I2CR_SDA_OUT;
 	golden_writel(fmc, reg, 0);
-	udelay(3); /* FIXME: is this enough? */
+	udelay(3);		/* FIXME: is this enough? */
 }
 
 static void set_scl(struct fmc_device *fmc, int val)
@@ -90,7 +90,7 @@ static void set_scl(struct fmc_device *fmc, int val)
 	if (val)
 		reg |= GLD_I2CR_SCL_OUT;
 	golden_writel(fmc, reg, 0);
-	udelay(3);	/* FIXME: is this enough? */
+	udelay(3);		/* FIXME: is this enough? */
 }
 
 static int get_sda(struct fmc_device *fmc)
@@ -116,7 +116,7 @@ int mi2c_put_byte(struct fmc_device *fmc, int data)
 	int i;
 	int ack;
 
-	for (i = 0; i < 8; i++, data<<=1) {
+	for (i = 0; i < 8; i++, data <<= 1) {
 		set_sda(fmc, data & 0x80);
 		set_scl(fmc, 1);
 		set_scl(fmc, 0);
@@ -130,7 +130,7 @@ int mi2c_put_byte(struct fmc_device *fmc, int data)
 	set_scl(fmc, 0);
 	set_sda(fmc, 0);
 
-	return ack ? -EIO : 0; /* ack low == success */
+	return ack ? -EIO : 0;	/* ack low == success */
 }
 
 int mi2c_get_byte(struct fmc_device *fmc, unsigned char *data, int sendack)
@@ -154,7 +154,7 @@ int mi2c_get_byte(struct fmc_device *fmc, unsigned char *data, int sendack)
 	set_scl(fmc, 0);
 	set_sda(fmc, 0);
 
-	*data= indata;
+	*data = indata;
 	return 0;
 }
 
@@ -167,17 +167,17 @@ void mi2c_init(struct fmc_device *fmc)
 void mi2c_scan(struct fmc_device *fmc)
 {
 	int i;
-	for(i = 0; i < 256; i += 2) {
+	for (i = 0; i < 256; i += 2) {
 		mi2c_start(fmc);
-		if(!mi2c_put_byte(fmc, i))
+		if (!mi2c_put_byte(fmc, i))
 			pr_info("%s: Found i2c device at 0x%x\n",
-			       KBUILD_MODNAME, i >> 1);
+				KBUILD_MODNAME, i >> 1);
 		mi2c_stop(fmc);
 	}
 }
 
 int svec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
-		void *buf, size_t size)
+		     void *buf, size_t size)
 {
 	unsigned char c;
 	int ret = size;
@@ -185,7 +185,7 @@ int svec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 	int i2c_addr = fmc->eeprom_addr;
 
 	mi2c_start(fmc);
-	if(mi2c_put_byte(fmc, i2c_addr << 1) < 0) {
+	if (mi2c_put_byte(fmc, i2c_addr << 1) < 0) {
 		mi2c_stop(fmc);
 		return -EIO;
 	}
@@ -204,13 +204,13 @@ int svec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 }
 
 int svec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
-		 const void *buf, size_t size)
+		      const void *buf, size_t size)
 {
 	int i, busy;
 	const uint8_t *buf8 = buf;
 	int i2c_addr = fmc->eeprom_addr;
 
-	for(i = 0; i < size; i++) {
+	for (i = 0; i < size; i++) {
 		mi2c_start(fmc);
 
 		if (mi2c_put_byte(fmc, i2c_addr << 1) < 0) {
@@ -223,11 +223,11 @@ int svec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 		offset++;
 		mi2c_stop(fmc);
 
-		do { /* wait until the chip becomes ready */
+		do {		/* wait until the chip becomes ready */
 			mi2c_start(fmc);
 			busy = mi2c_put_byte(fmc, i2c_addr << 1);
 			mi2c_stop(fmc);
-		} while(busy);
+		} while (busy);
 	}
 	return size;
 }
@@ -256,7 +256,7 @@ int svec_i2c_init(struct fmc_device *fmc)
 		return -EIO;
 	} else {
 		dev_info(fmc->hwdev, "Mezzanine %d, i2c 0x%x: EEPROM read ok\n",
-			fmc->slot_id + 1, fmc->eeprom_addr);
+			 fmc->slot_id + 1, fmc->eeprom_addr);
 	}
 	fmc->eeprom = buf;
 	fmc->eeprom_len = SVEC_I2C_EEPROM_SIZE;
@@ -273,4 +273,3 @@ void svec_i2c_exit(struct fmc_device *fmc)
 	fmc->eeprom = NULL;
 	fmc->eeprom_len = 0;
 }
-

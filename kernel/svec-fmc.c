@@ -12,7 +12,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/fmc-sdb.h>
-#include <linux/jhash.h>
 #include "svec.h"
 
 static int svec_show_sdb;
@@ -40,14 +39,13 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	const struct firmware *fw;
 	struct svec_dev *svec = fmc->carrier_data;
 	struct device *dev = fmc->hwdev;
-	uint32_t fw_hash;
 	int ret = 0;
 
 	/* If no firmware filename is provided, load default */
 	if (!gw)
 		gw = svec_fw_name;
 
-	if (!strlen(gw)) { /* use module parameters from the driver */
+	if (!strlen(gw)) {	/* use module parameters from the driver */
 		int index;
 
 		/*
@@ -59,7 +57,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 
 		gw = drv->gw_val[index];
 		if (!gw)
-			return -ESRCH; /* the caller may accept this */
+			return -ESRCH;	/* the caller may accept this */
 	}
 
 	dev_info(fmc->hwdev, "reprogramming with %s\n", gw);
@@ -69,29 +67,18 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		return ret;
 	}
 	fmc_free_sdb_tree(fmc);
-	
-	/* Hash firmware bitstream */
-	fw_hash = jhash(fw->data, fw->size,0);
-	if (fw_hash == svec->fw_hash) {
-		dev_info(dev, "card already programmed with \"%s\" [%x]\n", gw, fw_hash);
-		goto out;
-	}
 
 	/* load the firmware */
 	ret = svec_load_fpga(svec, fw->data, fw->size);
-	if (ret <0) {
+	if (ret < 0) {
 		dev_err(dev, "error %i programming firmware \"%s\"\n", ret, gw);
 		goto out;
 	}
 
-	/* configure and activate function 0 */
-	dev_info(fmc->hwdev, "svec-fmc: setup fa0\n");
-	svec_setup_csr_fa0(svec->map[MAP_CR_CSR]->kernel_va, svec->vmebase,
-				svec->vector, svec->level);
+	/* Configure & activate CSR functions depending on chosen AM */
+	svec_setup_csr(svec);
 
-	/* Store firmware hash to avoid reprogram */
-	svec->fw_hash = fw_hash;
-out:
+      out:
 	release_firmware(fw);
 	if (ret < 0)
 		dev_err(dev, "svec reprogram failed while loading %s\n", gw);
@@ -100,22 +87,7 @@ out:
 
 static int svec_validate(struct fmc_device *fmc, struct fmc_driver *drv)
 {
-	return 0; /* everyhing is valid */
-}
-
-static int svec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
-			    char *name, int flags)
-{
-	return 0;
-}
-
-static void svec_irq_ack(struct fmc_device *fmc)
-{
-}
-
-static int svec_irq_free(struct fmc_device *fmc)
-{
-	return 0;
+	return 0;		/* everyhing is valid */
 }
 
 static int svec_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio,
@@ -123,7 +95,6 @@ static int svec_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio,
 {
 	return 0;
 }
-
 
 static int svec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 {
@@ -142,16 +113,16 @@ static int svec_write_ee(struct fmc_device *fmc, int pos,
 }
 
 static struct fmc_operations svec_fmc_operations = {
-	.readl =		svec_readl,
-	.writel =		svec_writel,
-	.reprogram =		svec_reprogram,
-	.irq_request =		svec_irq_request,
-	.irq_ack =		svec_irq_ack,
-	.irq_free =		svec_irq_free,
-	.gpio_config =		svec_gpio_config,
-	.read_ee =		svec_read_ee,
-	.write_ee =		svec_write_ee,
-	.validate =		svec_validate,
+	.readl = svec_readl,
+	.writel = svec_writel,
+	.reprogram = svec_reprogram,
+	.irq_request = svec_irq_request,
+	.irq_ack = svec_irq_ack,
+	.irq_free = svec_irq_free,
+	.gpio_config = svec_gpio_config,
+	.read_ee = svec_read_ee,
+	.write_ee = svec_write_ee,
+	.validate = svec_validate,
 };
 
 static int check_golden(struct fmc_device *fmc)
@@ -166,7 +137,7 @@ static int check_golden(struct fmc_device *fmc)
 		dev_err(svec->dev, "Bad SDB magic: 0x%08x\n", magic);
 		return -ENODEV;
 	}
-	if ( (ret = fmc_scan_sdb_tree(fmc, 0x0)) < 0)
+	if ((ret = fmc_scan_sdb_tree(fmc, 0x0)) < 0)
 		return -ENODEV;
 
 	vendor = fmc_readl(fmc, 0x5c);
@@ -194,8 +165,7 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 
 	fmc = kzalloc(sizeof(*fmc), GFP_KERNEL);
 	if (!fmc) {
-		dev_err(svec->dev, "cannot allocate fmc slot %d\n",
-			fmc_slot);
+		dev_err(svec->dev, "cannot allocate fmc slot %d\n", fmc_slot);
 		return -ENOMEM;
 	}
 
@@ -206,19 +176,27 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 
 	fmc->fpga_base = svec->map[MAP_REG]->kernel_va;
 
-	fmc->irq = 0; /*TO-DO*/
+	fmc->irq = 0;		/*TO-DO */
 	fmc->op = &svec_fmc_operations;
-	fmc->hwdev = svec->dev; /* for messages */
+	fmc->hwdev = svec->dev;	/* for messages */
 
 	fmc->slot_id = fmc_slot;
 	fmc->device_id = (svec->slot << 6) | fmc_slot;
 	fmc->eeprom_addr = 0x50 + 2 * fmc_slot;
-	fmc->memlen = 0x100000;
+	fmc->memlen = svec->cfg_cur.vme_size;
 
 	/* check golden integrity */
 	/* FIXME: this uses fmc_scan_sdb_tree and de-allocation
 	 * could be wrong at second reprogramming, as it is called
 	 * n times, one per slot */
+
+	ret = svec_load_golden(svec);
+	if (ret) {
+		dev_err(svec->dev, "Cannot load golden bitstream: %d\n", ret);
+		kfree(fmc);
+		return ret;
+	}
+
 	ret = check_golden(fmc);
 	if (ret) {
 		dev_err(svec->dev, "Bad golden, error %d\n", ret);
@@ -235,7 +213,7 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 
 	svec->fmcs[fmc_slot] = fmc;
 	dev_info(svec->dev, "ready to create fmc device_id 0x%x\n",
-			fmc->device_id);
+		 fmc->device_id);
 
 	return ret;
 }
@@ -246,8 +224,9 @@ int svec_fmc_create(struct svec_dev *svec)
 	int error = 0;
 
 	/* fmc structures filling */
-	for (i=0; i < svec->fmcs_n; i++) {
+	for (i = 0; i < svec->fmcs_n; i++) {
 		error = svec_fmc_prepare(svec, i);
+
 		if (error)
 			goto failed;
 	}
@@ -263,7 +242,14 @@ int svec_fmc_create(struct svec_dev *svec)
 	 */
 	dev_info(svec->dev, "fmc devices registered\n");
 
-failed:
+	return 0;
+
+      failed:
+
+	for (i = 0; i < svec->fmcs_n; i++)
+		if (svec->fmcs[i])
+			kfree(svec->fmcs[i]);
+
 	/* FIXME: free fmc allocations. */
 	return error;
 
@@ -271,7 +257,10 @@ failed:
 
 void svec_fmc_destroy(struct svec_dev *svec)
 {
+	if (!svec->fmcs[0])
+		return;
+
 	fmc_device_unregister_n(svec->fmcs, svec->fmcs_n);
-	dev_info(svec->dev, "%d fmc devices unregistered\n",
-		 svec->fmcs_n);
+	dev_info(svec->dev, "%d fmc devices unregistered\n", svec->fmcs_n);
+
 }

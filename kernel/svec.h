@@ -15,7 +15,16 @@
 #include "vmebus.h"
 
 #define SVEC_MAX_DEVICES        32
+#define SVEC_MAX_FIRMWARE_SIZE  0x400000
+
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
+#define SVEC_DEFAULT_VME_AM  { [0 ... (SVEC_MAX_DEVICES-1)] = 0x39 }
+#define SVEC_DEFAULT_VME_SIZE  { [0 ... (SVEC_MAX_DEVICES-1)] = 0x100000 }
+#define SVEC_DEFAULT_IRQ_LEVEL { [0 ... (SVEC_MAX_DEVICES-1)] = 0x2 }
+
+#define SVEC_UNINITIALIZED_VME_BASE  { [0 ... (SVEC_MAX_DEVICES-1)] = 0xffffffff }
+#define SVEC_UNINITIALIZED_IRQ_VECTOR { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
+
 #define SVEC_IRQ_LEVEL	2
 #define SVEC_N_SLOTS	2
 #define SVEC_BASE_LOADER	0x70000
@@ -28,45 +37,63 @@
 #define SVEC_I2C_EEPROM_SIZE (8 * 1024)
 
 enum svec_map_win {
-	MAP_CR_CSR = 0,	/* CR/CSR */
-	MAP_REG		/* A32 space */
+	MAP_CR_CSR = 0,		/* CR/CSR */
+	MAP_REG			/* A32/A24/A16 space */
 };
+
+struct svec_config {
+	int configured;
+	uint32_t vme_base;
+	int vme_am;
+	uint32_t vme_size;
+	uint32_t vic_base;
+	int interrupt_vector;
+	int interrupt_level;
+	int use_vic;
+	int use_fmc;
+};
+
+#define SVEC_FLAG_FMCS_REGISTERED 	0
+#define SVEC_FLAG_IRQS_REQUESTED  	1
+#define SVEC_FLAG_BOOTLOADER_ACTIVE 	2
 
 /* Our device structure */
 struct svec_dev {
-	int			lun;
-	int			slot;
-	uint32_t		vmebase;
-	int			vector;
-	int			level;
+	int lun;
+	int slot;
 
-	char			*fw_name;
-	struct device		*dev;
-	char			driver[16];
-	char			description[80];
-	uint32_t		fw_hash;	
-	struct vme_mapping	*map[2];
+	unsigned long flags;
 
-	/* struct work_struct	work; */
-	unsigned long		irqcount;
-	struct fmc_device	*fmcs[SVEC_N_SLOTS];
-						/* FMC devices */
-	int			fmcs_n;		/* Number of FMC devices */
-	int			irq_count;	/* for mezzanine use too */
+	char *fw_name;
+	struct device *dev;
+	char driver[16];
+	char description[80];
+	uint32_t fw_hash;
+
+	struct vme_mapping *map[2];
+
+	struct svec_config cfg_cur, cfg_new;
+
+	/* struct work_struct   work; */
+	unsigned long irqcount;
+	struct fmc_device *fmcs[SVEC_N_SLOTS];
+	/* FMC devices */
+	int fmcs_n;		/* Number of FMC devices */
+	int irq_count;		/* for mezzanine use too */
+
+	uint32_t vme_raw_addr;	/* VME address for raw VME I/O through vme_addr/vme_data attributes */
 };
 
 /* Functions and data in svec-vme.c */
 extern int svec_is_bootloader_active(struct svec_dev *svec);
-extern int svec_bootloader_unlock (struct svec_dev *svec);
+extern int svec_bootloader_unlock(struct svec_dev *svec);
 extern int svec_load_fpga(struct svec_dev *svec, const void *data, int size);
 extern int svec_load_fpga_file(struct svec_dev *svec, const char *name);
-extern void svec_setup_csr_fa0(void *base, u32 vme, unsigned vector,
-			       unsigned level);
+extern void svec_setup_csr_fa0(struct svec_dev *svec);
 extern int svec_unmap_window(struct svec_dev *svec, enum svec_map_win map_type);
-extern int svec_map_window( struct svec_dev *svec, enum svec_map_win map_type);
+extern int svec_map_window(struct svec_dev *svec, enum svec_map_win map_type);
 
 extern char *svec_fw_name;
-extern int spec_use_msi;
 
 /* Functions in svec-fmc.c, used by svec-vme.c */
 extern int svec_fmc_create(struct svec_dev *svec);
@@ -82,6 +109,7 @@ extern int svec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 
 /* SVEC CSR offsets */
 #define FUN0ADER	0x7FF63
+#define FUN1ADER	0x7FF73
 #define INT_LEVEL	0x7ff5b
 #define INTVECTOR	0x7ff5f
 #define WB_32_64	0x7ff33
@@ -95,5 +123,21 @@ extern int svec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 /* Functions in svec-sysfs.c */
 extern int svec_create_sysfs_files(struct svec_dev *card);
 extern void svec_remove_sysfs_files(struct svec_dev *card);
+
+int svec_dma_write(struct svec_dev *svec, uint32_t addr, int am, size_t size,
+		   void *buf, int is_fifo);
+int svec_dma_read(struct svec_dev *svec, uint32_t addr, int am, size_t size,
+		  void *buf, int is_fifo);
+
+int svec_irq_request(struct fmc_device *fmc, irq_handler_t handler, char *name,
+		     int flags);
+void svec_irq_ack(struct fmc_device *fmc);
+int svec_irq_free(struct fmc_device *fmc);
+
+int svec_reconfigure(struct svec_dev *svec);
+int svec_setup_csr(struct svec_dev *svec);
+
+int svec_validate_configuration(struct device *pdev, struct svec_config *cfg);
+int svec_load_golden(struct svec_dev *svec);
 
 #endif /* __SVEC_H__ */
