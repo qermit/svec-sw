@@ -347,6 +347,8 @@ static int svec_remove(struct device *pdev, unsigned int ndev)
 		clear_bit(SVEC_FLAG_FMCS_REGISTERED, &svec->flags);
 	}
 
+	svec_free_all_irqs(svec);
+
 	svec_unmap_window(svec, MAP_CR_CSR);
 	svec_unmap_window(svec, MAP_REG);
 	svec_remove_sysfs_files(svec);
@@ -595,6 +597,8 @@ int svec_reconfigure(struct svec_dev *svec)
 	if (svec->map[MAP_REG])
 		svec_unmap_window(svec, MAP_REG);
 
+	svec_free_all_irqs(svec);
+
 	error = svec_setup_csr(svec);
 	if (error)
 		return error;
@@ -698,6 +702,7 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 	name = dev_name(pdev);
 #endif
 	strlcpy(svec->driver, KBUILD_MODNAME, sizeof(svec->driver));
+	snprintf(svec->name, sizeof(svec->name), "svec.%d", svec->lun);
 
 	dev_set_drvdata(svec->dev, svec);
 

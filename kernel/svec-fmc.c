@@ -261,6 +261,7 @@ void svec_fmc_destroy(struct svec_dev *svec)
 		return;
 
 	fmc_device_unregister_n(svec->fmcs, svec->fmcs_n);
+	svec_free_all_irqs(svec);
 	dev_info(svec->dev, "%d fmc devices unregistered\n", svec->fmcs_n);
 
 }

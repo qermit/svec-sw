@@ -61,25 +61,24 @@ struct svec_config {
 struct svec_dev {
 	int lun;
 	int slot;
-
 	unsigned long flags;
-
 	char *fw_name;
 	struct device *dev;
+	char name[16];
 	char driver[16];
 	char description[80];
 	uint32_t fw_hash;
-
 	struct vme_mapping *map[2];
-
 	struct svec_config cfg_cur, cfg_new;
 
-	/* struct work_struct   work; */
-	unsigned long irqcount;
 	struct fmc_device *fmcs[SVEC_N_SLOTS];
+	irq_handler_t fmc_handlers[SVEC_N_SLOTS];
+
 	/* FMC devices */
 	int fmcs_n;		/* Number of FMC devices */
-	int irq_count;		/* for mezzanine use too */
+	unsigned long irq_count;	/* for mezzanine use too */
+	unsigned int current_vector;
+	spinlock_t irq_lock;
 
 	uint32_t vme_raw_addr;	/* VME address for raw VME I/O through vme_addr/vme_data attributes */
 };
@@ -133,6 +132,7 @@ int svec_irq_request(struct fmc_device *fmc, irq_handler_t handler, char *name,
 		     int flags);
 void svec_irq_ack(struct fmc_device *fmc);
 int svec_irq_free(struct fmc_device *fmc);
+void svec_free_all_irqs(struct svec_dev *svec);
 
 int svec_reconfigure(struct svec_dev *svec);
 int svec_setup_csr(struct svec_dev *svec);
