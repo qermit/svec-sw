@@ -48,7 +48,10 @@ ATTR_STORE_CALLBACK(bootloader_active)
 	struct svec_dev *card = dev_get_drvdata(pdev);
 
 	if (test_bit(SVEC_FLAG_FMCS_REGISTERED, &card->flags))
+	{
 		svec_fmc_destroy(card);
+		svec_irq_exit(card);
+	}
 
 	svec_bootloader_unlock(card);
 	return count;

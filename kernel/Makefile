@@ -26,6 +26,7 @@ svec-objs += svec-sysfs.o
 svec-objs += svec-fmc.o
 svec-objs += svec-i2c.o
 svec-objs += svec-irq.o
+svec-objs += svec-vic.o
 
 all: modules
 

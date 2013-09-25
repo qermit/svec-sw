@@ -80,6 +80,7 @@ struct svec_dev {
 	unsigned int current_vector;
 	spinlock_t irq_lock;
 
+	struct vic_irq_controller *vic;
 	uint32_t vme_raw_addr;	/* VME address for raw VME I/O through vme_addr/vme_data attributes */
 };
 
@@ -128,11 +129,6 @@ int svec_dma_write(struct svec_dev *svec, uint32_t addr, int am, size_t size,
 int svec_dma_read(struct svec_dev *svec, uint32_t addr, int am, size_t size,
 		  void *buf, int is_fifo);
 
-int svec_irq_request(struct fmc_device *fmc, irq_handler_t handler, char *name,
-		     int flags);
-void svec_irq_ack(struct fmc_device *fmc);
-int svec_irq_free(struct fmc_device *fmc);
-void svec_free_all_irqs(struct svec_dev *svec);
 
 int svec_reconfigure(struct svec_dev *svec);
 int svec_setup_csr(struct svec_dev *svec);
@@ -140,4 +136,20 @@ int svec_setup_csr(struct svec_dev *svec);
 int svec_validate_configuration(struct device *pdev, struct svec_config *cfg);
 int svec_load_golden(struct svec_dev *svec);
 
+/* VIC interrupt controller stuff */
+irqreturn_t svec_vic_irq_dispatch(struct svec_dev *svec);
+int svec_vic_irq_request(struct svec_dev *svec, struct fmc_device *fmc, unsigned long id, irq_handler_t handler);
+int svec_vic_irq_free(struct svec_dev *svec, unsigned long id);
+void svec_vic_irq_ack(struct svec_dev *svec, unsigned long id);
+void svec_vic_cleanup(struct svec_dev *svec);
+
+/* Generic IRQ routines */
+
+int svec_irq_request(struct fmc_device *fmc, irq_handler_t handler, char *name,
+		     int flags);
+void svec_irq_ack(struct fmc_device *fmc);
+int svec_irq_free(struct fmc_device *fmc);
+void svec_irq_exit(struct svec_dev *svec);
+
 #endif /* __SVEC_H__ */
+
