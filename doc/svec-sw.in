@@ -32,16 +32,16 @@
 @comment %**end of header
 
 @setchapternewpage off
-
-@set update-month February 2013
+@set update-month August 2013
+@include version.in
 
 @finalout
 
 @titlepage
 @title SVEC Software Support
-@subtitle Version 1.0 (@value{update-month})
+@subtitle Git revision @code{@value{git-revision}} (@value{update-month})
 @subtitle A driver for the SVEC card and its FMC modules
-@author Luis F. Ruiz Gago for CERN (BE-CO-HT)
+@author Luis F. Ruiz Gago, Tomasz Włostowski (CERN BE-CO-HT)
 @end titlepage
 @headings single
 
@@ -56,8 +56,8 @@
 @node Top
 @top Introduction
 
-This is the manual for the SVEC device driver. SVEC is the @i{Simple
-VME FMC Carrier} developed at
+This is the manual for the SVEC device driver. SVEC (@i{Simple
+VME FMC Carrier}) is a two-slot FPGA Mezzanine Carrier in VME64x form factor, developed at
 @url{http://www.ohwr.org/projects/svec}. This manual is part of the
 associated software project, hosted at
 @url{http://www.ohwr.org/projects/svec-sw}. The latest version of
@@ -71,58 +71,82 @@ The driver is a client of the FMC software bus abstraction. The package
 @i{fmc-bus} is dowloaded as a @i{git} submodule of this package, and
 its latest version can be found at @url{http://www.ohwr.org/projects/fmc-bus}.
 
-@c ##########################################################################
-@node Compiling the Drivers
-@chapter Compiling the Drivers
+Currently supported features are:
+@itemize
+@item Handling any number of SVEC cards with or without FMC mezzanines installed. Mezzanines
+are controlled in a carrier-agnostic way by their FMC drivers.
+@item A24 and A32 addressing modes with 32-bit data width.
+@item Sysfs-triggered VME bus configuration and device startup.
+@item Application FPGA firmware loading.
+@item Handling VME interrupts.
+@end itemize
 
-The kernel modules that are part of this package live in the @i{kernel}
-subdirectory. To compile them, you need to 
+@c ##########################################################################
+@node Compilation and installation
+@chapter Compilation and installation
+
+The kernel module that is part of this package lives in the @i{kernel}
+subdirectory. To compile it, you need to 
 set the @i{LINUX} variable in your environment with the top directory of
 the kernel sources for the version your are going to run the driver under.
 The driver compiles against Linux-2.6.24 and it should work in later ones,
-but I'm only testing it with 2.6.24 and 3.2.33.
+but I'm only testing it with 3.2.43-rt63.
 
 To compile run ``@code{make}'' with the previous variable set or 
 ``@code{make LINUX=<top_directory_of_kernel_sources>}''. 
 
 Up to now Makefile doesn't perform an automatic module
-installation under a standard Linux installation, since I'm mainly using it 
+installation under a standard Linux installation, since we're mainly using it 
 on CERN machines with their particular way of doing things.
 
 Please note that by default the package compiles the
 @i{fmc-bus} modules, too (the project is a @i{git} submodule).
 
 @c ##########################################################################
-@node Role of svec.ko
-@chapter Role of svec.ko
+@node The @code{svec.ko} driver
+@chapter The @code{svec.ko} driver
 
-The @code{svec.ko} driver depends on @code{fmc.ko}, that must
-be loaded first (unless you rely on automatic dependencies).
+The @code{svec.ko} is the only kernel module produced during compilation. It depends on @code{fmc.ko}, that must
+be loaded first (unless you rely on automatic dependencies), and the Linux
+VME bus infrastructure. It won't detect any SVECs unless a VME bus master/bridge driver is loaded
+(such as the Tundra TSI148 @code{vmebridge.ko} driver used at CERN).
 
-@code{svec.ko} registers as a VME driver and maps two VME windows, one as
-CR/CSR space and another one A32/D32 for register access.
+During load time, the driver must be supplied with the list of the slots occupied by SVEC cards and the LUNs that will
+identify them in the system. Despite the SVEC being a VME64x card, there is no autodetection mechanism provided as it may be unsafe for certain older VME devices. The VME bus configuration can be supplied either when loading the driver, through module parameters or at any later time
+through a sysfs interface (see @ref{SVEC Module Parameters} and @ref{User-Space Tools}) .
+
+The example below shows how to load the driver on a system with two SVECs installed in slots 4 and 12:
+@smallexample
+	modprobe fmc
+	modprobe svec slot=4,12 lun=0,1
+@end smallexample
+
+@b{Note:} The driver verifies the presence of the SVEC cards at a given slot by accesing their CSR registers which are geographically addressed. However,
+providing an incorrect slot number pointing to a non-VME64x card may have unpredictable results.
 
 @c ==========================================================================
 @node SVEC Initialization
 @section SVEC Initialization
 
-For each new SVEC device found on the system, the driver performs the
-following steps:
+For each new SVEC device found on the system, the driver performs the following steps:
 
 @itemize @bullet
-@item It maps a VME CR/CSR window.
-@item It loads the @code{fmc/svec_golden.bin} ``golden'' gateware file.
-@item It maps a VME A32/D32 window.
-@item It allocates two @i{fmc_device} structures and registers as
-      a new devices in the @i{fmc} bus.
+@item Map a VME CR/CSR window for the particular slot.
+@item Check if the card is present through the AFPGA bootloader interface.
+@item Check if the driver has been supplied with VME window configuration via the module parameters.
+@item If true, load the @code{fmc/svec-golden.bin} ``golden'' bitstream file (or any other bitstream configured through module parameters) and check what FMCs are connected.
+@item Map the register access VME window (A24/A32).
+@item Create two @i{fmc_device} structures and register as
+      new devices in the @i{fmc} bus.
+@item If there is no VME configuration supplied, wait until the user sets up the VME window via sysfs and enumerate/startup the FMCs afterwards.
 @end itemize
 
-Failure of any of the above steps is fatal.
+Failure of any of the above steps is considered fatal.
 
-The suggested @code{svec_golden.bin} gateware binary is always available
+The suggested @code{svec-golden.bin} gateware binary is always available
 from the @i{files} area of the @i{svec-sw} project on @code{ohwr.org}.
-The current binary version to be used with this software version is
-@url{http://www.ohwr.org/attachments/download/1905/golden-svec-20130114-1000.tar.gz}.
+The binary version to be used with this software version is at
+@url{http://www.ohwr.org/projects/svec-sw/files}.
 
 @b{Note:} currently the SVEC driver does not re-write the golden
 binary file when the sub-driver releases control of the card. This
@@ -133,46 +157,55 @@ useful during development.
 @node SVEC Module Parameters
 @section SVEC Module Parameters
 
-The module can receive the following parameters to customize its operation:
+The module can receive the following parameters to customize its operation. All of the parameters below
+are arrays where each entry corresponds to one SVEC card.
 
 @table @code
 
+@item slot
+
+      @b{Mandatory.} The slot(s) in which the SVEC(s) reside(s). 
+
 @item lun
 	
-	Index value for the SVEC card.
+	@b{Mandatory.} Logical Unit (LUN) value for the SVEC.
 
-@item vmebase1
+@item vmebase
 
-	Unsigned long parameter which represent the first VME address of the
-	SVEC card. Its value is calculated from the physical slot, 0x80000
-	times the slot number.
+	@b{Optional.} VME base address of the Application FPGA window.
 
-@item vmebase2
+@item vme_size
 
-	Unsigned long parameter for the second VME address. It is used for
-	allocating a VME A32/D32 window. Though this value can be arbitrarily
-	chosen in principle, you should take into account that the window size
-	is 0x100000 and it can not overlap with another VME map in your system.	
+	@b{Optional.} VME Application FPGA window size, in bytes. Default is @code{0x100000}.
+
+@item vme_am
+
+	@b{Optional.} VME Application FPGA window address modifier, in bytes. Default is @code{0x39}, that is A24.
 
 @item vector
 	
-	IRQ vector used by the card.
-
-@item fw_name
-
-	String parameter indicating the golden bitstream name,
-	(@code{fmc/svec_golden.bin}) by default. In a near future a default
-	golden will be loaded - hopefully - from an onboard Flash memory
-	and this parameter might be used to override it.
+	@b{Optional.} VME IRQ vector used by the card.
 
 @item level
 
-	IRQ level. 
+	@b{Optional.} VME IRQ level (default is @code{2}). 
+
+@item fw_name
+
+	@b{Optional.} String parameter indicating the golden bitstream name,
+	(@code{fmc/svec-golden.bin} by default). In a near future a default
+	golden will be loaded - hopefully - from an onboard Flash memory
+	and this parameter might be used to override it.
 
 @item show_sdb
 
-	If not zero, the SDB internal structure of the golden binary
-        is reported through kernel messages. It is disabled by default.
+	@b{Optional.} If not zero, the SDB internal structure of the golden binary
+        is reported through kernel messages. Disabled by default.
+
+@item use_fmc
+
+	@b{Optional.} If set to non-zero, the driver will not register the FMCs. 
+        Provided for debugging purposes.
 
 @end table
 
@@ -189,14 +222,157 @@ Please refer to the @i{fmc-bus} manual for details about the overall
 design of the interactions of carriers and mezzanines.
 
 @c ==========================================================================
-@node Interrupts in svec.ko
-@section Interrupts in svec.ko
+@node Interrupt support 
+@section Interrupt support
 
-To-Do. Not supported for the current driver version.
+The SVEC driver provides two ways of handling interrupts:
+@itemize
+@item Shared VME interrupt, routed to all interested FMC drivers.
+@item Vectored Interrupt Controller (VIC) interrupts.
+@end itemize
+
+@subsection Shared interrupt mode
+In shared interrupt mode, the SVEC driver calls all registered FMC IRQ handlers until one of them has handled the interrupt by returing @code{IRQ_HANDLED}. 
+Requesting an IRQ in shared mode can be done by passing IRQF_SHARED flag to @code{fmc->op->irq_request()}. 
+If the interrupts are further multiplexed inside the FMC gateware, the driver must dispatch them accordingly.
+
+@smallexample
+    irqreturn_t my_handler (int irq, void *data) {
+        if(irq_is_for_us(irq))
+	    return IRQ_HANDLED;
+	return 0;
+    }
+
+    fmc->op->irq_request( fmc, my_handler, "myirq", IRQF_SHARED);
+@end smallexample
+
+
+@subsection VIC interrupt mode
+This mode provides a simple abstraction for the Vectored Interrupt Controller (VIC), the standard BE-CO-HT HDL module for multiplexing
+interrupts inside an FPGA. The advantage is plug and play enumeration of the interrupts and no sharing overhead. Requesting an IRQ in VIC mode is done by:
+@itemize
+@item passing the SDB base address of the core whose interrupt we want to via the @code{irq} field in @code{struct fmc_device}. 
+@item leaving @code{flags} parameter at 0.
+@end itemize
+
+@smallexample
+    fmc->irq = fmc->base_address;
+    fmc->op->irq_request( fmc, my_handler, "my_vic_irq", 0);
+@end smallexample
+
+The first time the @code{irq_request} is called, the SVEC driver will detect the VIC and configure it accordingly. It therefore requires an SDB-enabled gateware with 
+correctly initialized VIC vector table. For more details, refer to [1]. 
+
+@node sysfs interface
+@chapter @code{sysfs} interface
+
+The driver allows userspace programs to (re)configure each SVEC's VME interface through @code{sysfs} files. Such configuration
+method is useful for systems containing multiple SVEC cards mixed with other VME devices (such as many of CERN VME frontends, where the configuration is stored in an external database).
+
+The @code{sysfs} controls for a SVEC card (identified by a @code{LUN}) reside in @code{/sys/bus/vme/devices/svec.LUN/} directory:
+
+@smallexample
+   # ls -l /sys/bus/vme/devices/svec.0/
+   -rw-r--r-- 1 root root 4096 Aug 30 16:26 bootloader_active
+   -rw-r--r-- 1 root root 4096 Aug 30 11:53 configured
+   -rw-r--r-- 1 root root 4096 Aug 30 16:26 firmware_name
+   -rw-r--r-- 1 root root 4096 Aug 30 11:53 interrupt_level
+   -rw-r--r-- 1 root root 4096 Aug 30 11:53 interrupt_vector
+   -r--r--r-- 1 root root 4096 Aug 30 11:53 slot
+   -rw-r--r-- 1 root root 4096 Aug 30 11:53 use_fmc
+   -rw-r--r-- 1 root root 4096 Aug 30 11:57 vme_addr
+   -rw-r--r-- 1 root root 4096 Aug 30 11:53 vme_am
+   -rw-r--r-- 1 root root 4096 Aug 30 11:53 vme_base
+   -rw-r--r-- 1 root root 4096 Aug 30 11:57 vme_data
+   -rw-r--r-- 1 root root 4096 Aug 30 11:53 vme_size
+@end smallexample
+
+@subsection Configuring the VME interface
+VME configuration is done by writing the VME window parameters to appropriate files and afterwards, committing the changes by writing 1 to @code{configured} file:
+
+@smallexample
+   # cd /sys/bus/vme/devices/svec.0
+   # echo 0x39 > vme_am
+   # echo 0xa00000 > vme_base
+   # echo 0x100000 > vme_size
+   # echo 0x80 > interupt_vector
+   # echo 1 > configured
+@end smallexample
+
+The example above will configure a 1 MiB A24 window at @code{0xa00000}, and a VME interrupt at vector @code{0x80}. Alternatively, you can use the @code{svec-config} tool, documented in the next section.
+
+Reading the @code{configured} file lets you check if the card has been already configured by someone else.
+
+@b{Note 1:} VME reconfiguration causes the card's firmware and FMC drivers to be reloaded. 
+
+@b{Note 2:} Readback values of the VME parameters are updated when the configuration is committed. 
+
+@b{Warning 1:} The driver performs some trivial checks on the VME window/interrupt parameters, but it is still possible to crash the system by assigning a configuration that conflicts with other VME cards.
+
+@b{Warning 2:} If the driver is to be configured via @code{sysfs}, it will almost always load without errors (unless there is no SVEC in the specified slot). If there's something wrong (with the SVEC config or the attached FMC drivers), the errors will be triggered during userspace reconfiguration.
+
+@subsection Raw access to the VME registers
+
+This is handled via the @code{vme_addr} and @code{vme_data} attributes.
+In order to read something from a given address, put the address in @code{vme_addr} file and then read the @code{vme_data} file. Writes are done in the same way.
+
+@b{Note:} Raw VME access through @code{sysfs} works only if the VME register window is correctly configured.
+
 
 @c ##########################################################################
 @node User-Space Tools
 @chapter User-Space Tools
+
+@section svec-config
+
+@code{svec-config} is a simple command-line tool for configuring the VME bus through sysfs. The parameters are described below:
+
+@table @code
+
+@item @code{-l}
+
+Prints the list of all SVECs in the system.
+
+@item @code{-u lun}
+	
+Logical Unit number of the card to be configured. The card must be selected either by this, or by @code{-s} parameter.
+
+@item @code{-s slot}
+	
+Slot number of the card to be configured. The card must be selected either by this, or by @code{-u} parameter.
+
+@item @code{-a modifier}
+	
+Address modifier to use (acceptable values are @code{A24} or @code{A32}). No hex values are allowed. Default is @code{A24}.
+
+@item @code{-b address}
+
+Base address of our VME window. Mandatory.
+
+@item @code{-w size}
+
+Size of our VME window, in bytes. Default is @code{0x100000}.
+
+@item @code{-v vector}
+
+VME Interrupt vector, if the card uses interrupts. Default is @code{0x86}.
+
+@item @code{-k level}
+
+VME Interrupt level, if the card uses interrupts. Default is @code{2}.
+
+@item @code{-f enable}
+
+Enables/disables enumeration and loading of FMC drivers after reconfiguration. On by default.
+
+@end table
+
+For example, the command below configures the card in slot @code{12} to use an A24 window at @code{0xc00000}:
+@smallexample
+	./svec-config -s 12 -a A24 -b 0xc00000
+@end smallexample
+
+@b{Note:} @code{svec-config} requires a Python interpreter.
 
 
 @c ##########################################################################
@@ -205,10 +381,8 @@ To-Do. Not supported for the current driver version.
 
 @itemize @bullet
 
-@item Interrupt support is missing. Is the next step.
-
-@item Identification of the mezzanine is completely missing; every @i{fmc}
-driver at this point takes hold of every device. 
+@item Userspace-triggered firmware loading (that doesn't conflict with the FMCs).
+@item Flash programming tool.
 
 @end itemize
 

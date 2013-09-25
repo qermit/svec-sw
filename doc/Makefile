@@ -6,7 +6,7 @@
 #################
 
 # There is not basenames here, all *.in are considered input
-INPUT = $(wildcard *.in)
+INPUT = svec-sw.in
 
 TEXI = $(INPUT:.in=.texi)
 INFO = $(INPUT:.in=.info)
@@ -21,6 +21,7 @@ MAKEINFO ?= makeinfo
 %.texi: %.in
 	@rm -f $@
 	sed -f ./infofilter $< > $@
+	git log --pretty=format:'@set git-revision %h' -n 1 > version.in
 	emacs -batch --no-site-file -l fixinfo $@
 	chmod -w $@
 
