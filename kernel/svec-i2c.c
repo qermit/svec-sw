@@ -16,9 +16,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fmc.h>
-#include <linux/random.h>	/* FIXME: is this needed? */
 #include "svec.h"
-#include "golden_regs.h"
+#include "hw/golden_regs.h"
 
 /* re-definitions for fields in golden core */
 #define GLD_I2C_CORE_BASE	0x10000

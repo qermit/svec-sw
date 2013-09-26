@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/jhash.h>
 #include "svec.h"
-#include "xloader_regs.h"
+#include "hw/xloader_regs.h"
 
 char *svec_fw_name = "fmc/svec-golden.bin";
 
