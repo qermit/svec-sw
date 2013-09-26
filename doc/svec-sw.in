@@ -32,15 +32,15 @@
 @comment %**end of header
 
 @setchapternewpage off
-@set update-month August 2013
+@set update-month September 2013
 @include version.in
 
 @finalout
 
 @titlepage
 @title SVEC Software Support
-@subtitle Git revision @code{@value{git-revision}} (@value{update-month})
 @subtitle A driver for the SVEC card and its FMC modules
+@subtitle Git revision @code{@value{git-revision}} (@value{git-date})
 @author Luis F. Ruiz Gago, Tomasz Włostowski (CERN BE-CO-HT)
 @end titlepage
 @headings single
@@ -233,26 +233,25 @@ The SVEC driver provides two ways of handling interrupts:
 
 @subsection Shared interrupt mode
 In shared interrupt mode, the SVEC driver calls all registered FMC IRQ handlers until one of them has handled the interrupt by returing @code{IRQ_HANDLED}. 
-Requesting an IRQ in shared mode can be done by passing IRQF_SHARED flag to @code{fmc->op->irq_request()}. 
+Requesting a shared IRQ is done by passing IRQF_SHARED flag to @code{fmc->op->irq_request()}. 
 If the interrupts are further multiplexed inside the FMC gateware, the driver must dispatch them accordingly.
 
 @smallexample
     irqreturn_t my_handler (int irq, void *data) {
         if(irq_is_for_us(irq))
-	    return IRQ_HANDLED;
-	return 0;
+             return IRQ_HANDLED;
+        return 0;
     }
 
     fmc->op->irq_request( fmc, my_handler, "myirq", IRQF_SHARED);
 @end smallexample
-
 
 @subsection VIC interrupt mode
 This mode provides a simple abstraction for the Vectored Interrupt Controller (VIC), the standard BE-CO-HT HDL module for multiplexing
 interrupts inside an FPGA. The advantage is plug and play enumeration of the interrupts and no sharing overhead. Requesting an IRQ in VIC mode is done by:
 @itemize
 @item passing the SDB base address of the core whose interrupt we want to via the @code{irq} field in @code{struct fmc_device}. 
-@item leaving @code{flags} parameter at 0.
+@item leaving the @code{flags} parameter at 0.
 @end itemize
 
 @smallexample
@@ -260,11 +259,11 @@ interrupts inside an FPGA. The advantage is plug and play enumeration of the int
     fmc->op->irq_request( fmc, my_handler, "my_vic_irq", 0);
 @end smallexample
 
-The first time the @code{irq_request} is called, the SVEC driver will detect the VIC and configure it accordingly. It therefore requires an SDB-enabled gateware with 
-correctly initialized VIC vector table. For more details, refer to [1]. 
+The first time the @code{fmc->irq_request} is called, the SVEC driver will detect the VIC and configure it accordingly. It therefore requires an SDB-enabled gateware with 
+correctly initialized VIC vector table. For more details on VIC hardware setup, please refer to the @code{general-cores} VHDL library manual.
 
-@node sysfs interface
-@chapter @code{sysfs} interface
+@node The sysfs interface
+@chapter The @code{sysfs} interface
 
 The driver allows userspace programs to (re)configure each SVEC's VME interface through @code{sysfs} files. Such configuration
 method is useful for systems containing multiple SVEC cards mixed with other VME devices (such as many of CERN VME frontends, where the configuration is stored in an external database).
@@ -287,7 +286,7 @@ The @code{sysfs} controls for a SVEC card (identified by a @code{LUN}) reside in
    -rw-r--r-- 1 root root 4096 Aug 30 11:53 vme_size
 @end smallexample
 
-@subsection Configuring the VME interface
+@section Configuring the VME interface
 VME configuration is done by writing the VME window parameters to appropriate files and afterwards, committing the changes by writing 1 to @code{configured} file:
 
 @smallexample
@@ -311,8 +310,7 @@ Reading the @code{configured} file lets you check if the card has been already c
 
 @b{Warning 2:} If the driver is to be configured via @code{sysfs}, it will almost always load without errors (unless there is no SVEC in the specified slot). If there's something wrong (with the SVEC config or the attached FMC drivers), the errors will be triggered during userspace reconfiguration.
 
-@subsection Raw access to the VME registers
-
+@section Raw access to the VME registers
 This is handled via the @code{vme_addr} and @code{vme_data} attributes.
 In order to read something from a given address, put the address in @code{vme_addr} file and then read the @code{vme_data} file. Writes are done in the same way.
 

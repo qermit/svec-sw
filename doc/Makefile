@@ -22,6 +22,8 @@ MAKEINFO ?= makeinfo
 	@rm -f $@
 	sed -f ./infofilter $< > $@
 	git log --pretty=format:'@set git-revision %h' -n 1 > version.in
+	echo >> version.in
+	git log --pretty=format:'@set git-date %ci' -n 1 >> version.in
 	emacs -batch --no-site-file -l fixinfo $@
 	chmod -w $@
 
