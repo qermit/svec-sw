@@ -113,8 +113,8 @@ static int svec_write_ee(struct fmc_device *fmc, int pos,
 }
 
 static struct fmc_operations svec_fmc_operations = {
-	.readl = svec_readl,
-	.writel = svec_writel,
+	.read32 = svec_readl,
+	.write32 = svec_writel,
 	.reprogram = svec_reprogram,
 	.irq_request = svec_irq_request,
 	.irq_ack = svec_irq_ack,
