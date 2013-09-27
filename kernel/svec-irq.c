@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/fmc.h>
 #include <linux/spinlock.h>
-#include <vmebus.h>
+#include "vmebus.h"
 
 #include "svec.h"
 
