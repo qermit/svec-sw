@@ -20,7 +20,7 @@ static int svec_irq_handler(void *data)
 {
 	struct svec_dev *svec = (struct svec_dev *)data;
 	int i;
-	int rv = -1;
+	int rv = IRQ_HANDLED;
 	unsigned long flags;
 
 	svec->irq_count++;
@@ -35,11 +35,11 @@ static int svec_irq_handler(void *data)
 		for (i = 0; i < SVEC_N_SLOTS; i++) {
 			irq_handler_t handler = svec->fmc_handlers[i];
 
-			if (handler) {
-				rv = handler(i, svec->fmcs[i]);
-				if (rv == IRQ_HANDLED)
-					break;
-			}
+			/* Call all handlers even if the current one returned IRQ_HANDLED. The SVEC
+			   VME Core IRQ is edge-sensitive, doing otherwise could result in missed irqs! */
+			if (handler) 
+				handler(i, svec->fmcs[i]);
+			
 		}
 	}
 
