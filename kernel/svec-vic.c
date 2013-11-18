@@ -193,5 +193,5 @@ int svec_vic_irq_free(struct svec_dev *svec, unsigned long id)
 
 void svec_vic_irq_ack(struct svec_dev *svec, unsigned long id)
 {
-	/* fixme: do we need anything special here? */
+	vic_writel(svec->vic, 0, VIC_REG_EOIR);
 }
