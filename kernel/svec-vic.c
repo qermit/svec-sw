@@ -71,6 +71,7 @@ static int svec_vic_init(struct svec_dev *svec, struct fmc_device *fmc)
 		return -ENODEV;
 	}
 
+	if(svec->verbose)
 	dev_info(svec->dev, "Found VIC @ 0x%lx\n", vic_base);
 
 	vic = kzalloc(sizeof(struct vic_irq_controller), GFP_KERNEL);

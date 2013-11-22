@@ -235,8 +235,11 @@ int svec_i2c_init(struct fmc_device *fmc)
 {
 	void *buf;
 	int i;
+	struct svec_dev *svec = (struct svec_dev *)fmc->carrier_data;
 
+	if(svec->verbose)
 	mi2c_scan(fmc);
+
 	if (!mezzanine_present(fmc)) {
 		fmc->flags |= FMC_DEVICE_NO_MEZZANINE;
 		return 0;
@@ -253,7 +256,7 @@ int svec_i2c_init(struct fmc_device *fmc)
 		fmc->eeprom = NULL;
 		fmc->eeprom_len = 0;
 		return -EIO;
-	} else {
+	} else if (svec->verbose) {
 		dev_info(fmc->hwdev, "Mezzanine %d, i2c 0x%x: EEPROM read ok\n",
 			 fmc->slot_id + 1, fmc->eeprom_addr);
 	}

@@ -82,6 +82,7 @@ struct svec_dev {
 
 	struct vic_irq_controller *vic;
 	uint32_t vme_raw_addr;	/* VME address for raw VME I/O through vme_addr/vme_data attributes */
+	int verbose;
 };
 
 /* Functions and data in svec-vme.c */

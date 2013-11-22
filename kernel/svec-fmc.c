@@ -60,6 +60,7 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 			return -ESRCH;	/* the caller may accept this */
 	}
 
+	if(svec->verbose)
 	dev_info(fmc->hwdev, "reprogramming with %s\n", gw);
 	ret = request_firmware(&fw, gw, dev);
 	if (ret < 0) {
@@ -212,6 +213,8 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	}
 
 	svec->fmcs[fmc_slot] = fmc;
+	
+	if(svec->verbose)
 	dev_info(svec->dev, "ready to create fmc device_id 0x%x\n",
 		 fmc->device_id);
 
@@ -240,6 +243,7 @@ int svec_fmc_create(struct svec_dev *svec)
 	/* FIXME: how do we retrieve the actual number of registered
 	 * devices?
 	 */
+	if(svec->verbose)
 	dev_info(svec->dev, "fmc devices registered\n");
 
 	return 0;
@@ -261,6 +265,7 @@ void svec_fmc_destroy(struct svec_dev *svec)
 		return;
 
 	fmc_device_unregister_n(svec->fmcs, svec->fmcs_n);
+	if(svec->verbose)
 	dev_info(svec->dev, "%d fmc devices unregistered\n", svec->fmcs_n);
 
 }
