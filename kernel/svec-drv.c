@@ -261,6 +261,8 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 	u64 timeout;
 	int rv = 0;
 
+	clear_bit(SVEC_FLAG_AFPGA_PROGRAMMED, &svec->flags);
+
 	/* Hash firmware bitstream */
 	fw_hash = jhash(blob, size, 0);
 	if (fw_hash == svec->fw_hash) {
@@ -268,6 +270,8 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 		    dev_info(svec->dev,
 			 "card already programmed with bitstream with hash 0x%x\n",
 			 fw_hash);
+    
+    		set_bit(SVEC_FLAG_AFPGA_PROGRAMMED, &svec->flags);
 		return 0;
 	}
 
@@ -342,6 +346,11 @@ int svec_load_fpga(struct svec_dev *svec, const void *blob, int size)
 
 	/* give the VME bus control to App FPGA */
 	iowrite32(cpu_to_be32(XLDR_CSR_EXIT), loader_addr + XLDR_REG_CSR);
+
+	/* give the VME core a little while to settle up */
+	msleep(10);
+
+	set_bit(SVEC_FLAG_AFPGA_PROGRAMMED, &svec->flags);
 
 	/* after a successful reprogram, save the hash so that the future call can
 	   return earlier if requested to load the same bitstream */
@@ -443,6 +452,10 @@ int svec_setup_csr(struct svec_dev *svec)
 	int func;
 	void *base;
 	u8 ader[2][4];		/* FUN0/1 ADER contents */
+
+	/* don't try to set up CSRs of an empty AFPGA */
+	if (!test_bit(SVEC_FLAG_AFPGA_PROGRAMMED, &svec->flags))
+	    return 0;
 
 	if (!svec->map[MAP_CR_CSR])
 		rv = svec_map_window(svec, MAP_CR_CSR);
@@ -648,6 +661,8 @@ int svec_load_golden(struct svec_dev *svec)
 	error = svec_load_fpga_file(svec, svec->fw_name);
 	if (error)
 		return error;
+
+	set_bit(SVEC_FLAG_AFPGA_PROGRAMMED, &svec->flags);
 
 	error = svec_setup_csr(svec);
 	if (error)

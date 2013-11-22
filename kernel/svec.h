@@ -56,6 +56,7 @@ struct svec_config {
 #define SVEC_FLAG_FMCS_REGISTERED 	0
 #define SVEC_FLAG_IRQS_REQUESTED  	1
 #define SVEC_FLAG_BOOTLOADER_ACTIVE 	2
+#define SVEC_FLAG_AFPGA_PROGRAMMED	3
 
 /* Our device structure */
 struct svec_dev {
