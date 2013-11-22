@@ -87,10 +87,10 @@ static int svec_vic_init(struct svec_dev *svec, struct fmc_device *fmc)
 		vic->vectors[i].saved_id =
 		    vic_readl(vic, VIC_IVT_RAM_BASE + 4 * i);
 
-	/* configure the VIC output: active high, edge sensitive, pulse widhth = 1 tick (16 ns) */
+	/* configure the VIC output: active high, edge sensitive, pulse width = 1 tick (16 ns) */
 	vic_writel(vic,
 		   VIC_CTL_ENABLE | VIC_CTL_POL | VIC_CTL_EMU_EDGE |
-		   VIC_CTL_EMU_LEN_W(1), VIC_REG_CTL);
+		   VIC_CTL_EMU_LEN_W(40000), VIC_REG_CTL); /* 160 us IRQ retry timer */
 
 	vic->initialized = 1;
 	svec->vic = vic;
@@ -116,20 +116,28 @@ irqreturn_t svec_vic_irq_dispatch(struct svec_dev * svec)
 	int index, rv;
 	struct vector *vec;
 
-	/* Our parent IRQ handler: read the index value from the Vector Address Register,
-	   and find matching handler */
-	index = vic_readl(vic, VIC_REG_VAR) & 0xff;
+	do {
+		/* Our parent IRQ handler: read the index value from the Vector Address Register,
+		   and find matching handler */
+		index = vic_readl(vic, VIC_REG_VAR) & 0xff;
 
-	if (index >= VIC_MAX_VECTORS)
-		goto fail;
+		if (index >= VIC_MAX_VECTORS)
+			goto fail;
 
-	vec = &vic->vectors[index];
-	if (!vec->handler)
-		goto fail;
+		vec = &vic->vectors[index];
+		if (!vec->handler)
+			goto fail;
 
-	rv = vec->handler(vec->saved_id, vec->requestor);
+		rv = vec->handler(vec->saved_id, vec->requestor);
+		    
+		vic_writel(vic, 0, VIC_REG_EOIR);	/* ack the irq */
 
-	vic_writel(vic, 0, VIC_REG_EOIR);	/* ack the irq */
+		if(rv < 0)
+		    break;
+
+	/* check if any IRQ is still pending */
+	} while (vic_readl(vic, VIC_REG_RISR));
+	
 	return rv;
 
       fail:
