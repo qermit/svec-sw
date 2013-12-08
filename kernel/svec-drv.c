@@ -45,7 +45,7 @@ MODULE_PARM_DESC(slot, "Slot where SVEC card is installed");
 module_param_array(lun, int, &lun_num, S_IRUGO);
 MODULE_PARM_DESC(lun, "Index value for SVEC card");
 module_param_array(vmebase, uint, &vmebase_num, S_IRUGO);
-MODULE_PARM_DESC(vme_base, "VME Base address of the SVEC card registers");
+MODULE_PARM_DESC(vmebase, "VME Base address of the SVEC card registers");
 module_param_array(vme_am, uint, &vme_am_num, S_IRUGO);
 MODULE_PARM_DESC(vme_size, "VME Window size of the SVEC card registers");
 module_param_array(vme_size, uint, &vme_size_num, S_IRUGO);
