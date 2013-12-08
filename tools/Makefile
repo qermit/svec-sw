@@ -17,7 +17,7 @@ install-$(ENV):
 	dsc_install vme.$(CPU) /acc/dsc/$(ENV)/$(CPU)/bin
 
 clean:
-	rm -f *.o *.$(CPU)
+	rm -f *.o *.$(CPU) vme.$(CPU)
 
 # These targets are called from ../Makefile, just do nothing
 modules install modules_install:
