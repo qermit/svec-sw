@@ -1,10 +1,7 @@
 # Assign sensible defaults, but allow overriding with environment variables.
 
-# LINUX=/acc/sys/L865/usr/src/kernels/2.6.24.7-rt27
-
 CPU	?= L865
-KVER	?= 2.6.24.7-rt27
-KVER	?= 3.2.33-rt50
+KVER	?= 3.2.43-rt63
 LINUX ?= "/acc/sys/$(CPU)/usr/src/kernels/$(KVER)"
 
 FMC_DRV ?= $(shell ../check-fmc-bus)
