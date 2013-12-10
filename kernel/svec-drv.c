@@ -24,8 +24,8 @@ char *svec_fw_name = "fmc/svec-golden.bin";
 /* Module parameters */
 static int slot[SVEC_MAX_DEVICES];
 static unsigned int slot_num;
-static unsigned int vmebase[SVEC_MAX_DEVICES] = SVEC_UNINITIALIZED_VME_BASE;
-static unsigned int vmebase_num;
+static unsigned int vme_base[SVEC_MAX_DEVICES] = SVEC_UNINITIALIZED_VME_BASE;
+static unsigned int vme_base_num;
 static char *fw_name[SVEC_MAX_DEVICES];
 static unsigned int fw_name_num;
 static int vector[SVEC_MAX_DEVICES] = SVEC_UNINITIALIZED_IRQ_VECTOR;
@@ -44,8 +44,8 @@ module_param_array(slot, int, &slot_num, S_IRUGO);
 MODULE_PARM_DESC(slot, "Slot where SVEC card is installed");
 module_param_array(lun, int, &lun_num, S_IRUGO);
 MODULE_PARM_DESC(lun, "Index value for SVEC card");
-module_param_array(vmebase, uint, &vmebase_num, S_IRUGO);
-MODULE_PARM_DESC(vmebase, "VME Base address of the SVEC card registers");
+module_param_array(vme_base, uint, &vme_base_num, S_IRUGO);
+MODULE_PARM_DESC(vme_base, "VME Base address of the SVEC card registers");
 module_param_array(vme_am, uint, &vme_am_num, S_IRUGO);
 MODULE_PARM_DESC(vme_size, "VME Window size of the SVEC card registers");
 module_param_array(vme_size, uint, &vme_size_num, S_IRUGO);
@@ -698,7 +698,7 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 
 	svec->cfg_cur.use_vic = 1;
 	svec->cfg_cur.use_fmc = 1;
-	svec->cfg_cur.vme_base = vmebase[ndev];
+	svec->cfg_cur.vme_base = vme_base[ndev];
 	svec->cfg_cur.vme_am = vme_am[ndev];
 	svec->cfg_cur.vme_size = vme_size[ndev];
 	svec->cfg_cur.interrupt_vector = vector[ndev];
@@ -781,7 +781,7 @@ static int __init svec_init(void)
 		return -EINVAL;
 	}
 
-	error |= (vmebase_num && vmebase_num != slot_num);
+	error |= (vme_base_num && vme_base_num != slot_num);
 	error |= (vme_am_num && vme_am_num != slot_num);
 	error |= (vme_size_num && vme_size_num != slot_num);
 	error |= (level_num && level_num != slot_num);
@@ -790,7 +790,7 @@ static int __init svec_init(void)
 
 	if (error) {
 		pr_err
-		    ("%s: The number of vmebase/vme_am/vme_size/level/vector/fw_name/use_vic/use_fmc parameters must be zero or equal to the number of cards.\n",
+		    ("%s: The number of vme_base/vme_am/vme_size/level/vector/fw_name/use_vic/use_fmc parameters must be zero or equal to the number of cards.\n",
 		     __func__);
 		return -EINVAL;
 	}
