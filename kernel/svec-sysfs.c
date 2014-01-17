@@ -205,11 +205,10 @@ ATTR_STORE_CALLBACK(vme_addr)
 	if (sscanf(buf, "%i", &addr) != 1)
 		return -EINVAL;
 
-	if (card->vme_raw_addr >=
-	    card->cfg_cur.vme_base + card->cfg_cur.vme_size)
+	if (addr >= card->cfg_cur.vme_size)
 		return -EINVAL;
 
-	if (card->vme_raw_addr & 3)
+	if (addr & 3)
 		return -EINVAL;
 
 	card->vme_raw_addr = addr;
