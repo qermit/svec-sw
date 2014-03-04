@@ -1,0 +1,211 @@
+#!/usr/bin/python
+
+#
+# Copyright (C) 2014 CERN (www.cern.ch)
+# Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
+#
+# Released according to the GNU GPL, version 2 or any later version.
+#
+# svec-wr-loader: a tool for loading White Rabbit PTP Core firmware on SVEC carriers
+#
+
+import sys
+import os
+import re
+import struct
+import getopt
+
+def sysfs_read(path):
+    f=open(path,"r")
+    l=f.readline()
+    f.close()
+    return int(l,0)
+
+def sysfs_write(path, value):
+    try:
+	f=open(path,"w")
+    except IOError:
+	print ("An I/O error occured when trying to write to the SVEC sysfs attribute (%s)" % path)
+	print ("The most common reason is that the program does not have write permissions (try running me as root)")
+	sys.exit(-1)
+    f.write("0x%x\n" % value)
+    f.close()
+
+class CSvec:
+    def __init__(self):
+	pass
+
+    def attach (self, slot= None, lun = None, seq = 0):
+	s = 0
+	vme_dir = "/sys/bus/vme/devices/"
+        for subdir in os.listdir(vme_dir):
+    	    self.path = vme_dir + subdir;
+    	    m = re.match("svec\.(\d+)", subdir)
+    	    if m:
+    		self.slot = sysfs_read(self.path + "/slot")
+    		self.lun = int(m.group(1))
+
+		if m.group(1) and lun == self.lun:
+		    return True
+		if slot == self.slot:
+		    return True
+		if slot == None and lun == None and seq == s:
+		    return True
+
+		s += 1
+	return False
+
+    def writel (self, addr, data):
+	sysfs_write(self.path + "/vme_addr", addr)
+	sysfs_write(self.path + "/vme_data", data)
+	
+    def readl (self, addr):
+	sysfs_write(self.path + "/vme_addr", addr)
+	return sysfs_read(self.path + "/vme_data")
+	
+    def readb (self, addr):
+	return ord(struct.pack(">I", self.readl(addr & ~3))[addr & 3])
+
+    def readh (self, addr):
+	return (self.readb (addr) << 8) | self.readb(addr + 1)
+
+    def readq (self, addr):
+	return (self.readl(addr) << 32) + self.readl(addr + 4)
+
+def sdb_traverse (dev, base, sdb_addr, match):
+    INTERCONNECT = 0
+    DEVICE = 1
+    BRIDGE = 2
+
+    addr = sdb_addr
+    if(dev.readl(addr) != 0x5344422d):
+	return None
+
+    if(dev.readb(addr + 0x3f) != INTERCONNECT):
+	return None
+
+    rec_count = dev.readh(addr + 4)
+    for i in range(0, rec_count):
+	t = dev.readb(addr + 0x3f)
+	if(t == BRIDGE):
+	    child_sdb  = dev.readq(addr)
+	    child_addr  = dev.readq(addr + 8)
+	    rv = sdb_traverse (dev, base + child_addr, base + child_sdb, match)
+	    if(rv):
+		return rv
+	elif (t == DEVICE):
+	    dev_addr = base + dev.readq(addr + 8)
+	    dev_vendor = dev.readq(addr + 24)
+	    dev_id  = dev.readl(addr + 32)
+	    if match(dev_vendor, dev_id):
+		return dev_addr
+	addr+=0x40
+    return None
+
+def sdb_find_dev (dev, _vendor, _id):
+    return sdb_traverse(dev, 0, 0, lambda vendor,product: (vendor == _vendor and product == _id) ) 
+		
+
+def load_wrcore(dev, filename):
+    try:
+	image = open(filename,"rb").read()
+    except IOError:
+	print ("Can't open: '%s'" % filename)
+	sys.exit(-1)
+
+    print("Loading WR Core firmware for SVEC @ lun %d slot %d" % (dev.lun, dev.slot))
+
+    syscon_addr = sdb_find_dev(dev, 0xce42, 0xff07fc47)
+    if syscon_addr == None:
+	print("This card's gateware does not appear to have a WR PTP Core (or it's not SDB-enabled)")
+	sys.exit(-1)
+
+
+    # reset the core CPU
+    dev.writel(syscon_addr, 0x1deadbee)
+    while dev.readl(syscon_addr) & (1<<28) == 0:
+	pass
+    
+    offset = 0
+    for i in range(0, (len(image)+3)/4):
+	d = struct.unpack(">I", image[i*4:i*4+4])
+	# fixme: the WRCore CPU RAM has no unique SDB ID. We simply reference to it relatively to the syscon address 
+	dev.writel(syscon_addr - 0x20400 + offset, d)
+	offset += 4
+
+    # start the CPU
+    dev.writel(syscon_addr, 0x0deadbee)
+	
+
+def list_all_wrcores():
+    sv = CSvec()
+    s = 0
+    while True:
+	if not sv.attach(seq=s):
+	    return
+	if sdb_find_dev(sv, 0xce42, 0xff07fc47):
+	    print("Found WR Core in SVEC @ lun %d slot %d" % (sv.lun, sv.slot)) 
+	s+=1
+
+def program_all_wrcores(filename):
+    sv = CSvec()
+    s = 0
+    while True:
+	if not sv.attach(seq=s):
+	    return
+	if sdb_find_dev(sv, 0xce42, 0xff07fc47):
+	    load_wrcore(sv, filename)
+	s+=1
+
+
+def main():
+    svec = CSvec()
+    optlist, args = getopt.getopt(sys.argv[1:], 'lhu:s:a')
+    program_all = False
+    list_all = False
+    lun = None
+    slot = None
+    if len(optlist) == 0:
+	print("usage: %s [-a] [-l] [-u lun] [-s slot] wrc_firmware_file.bin" % sys.argv[0])
+	return
+    for o,a in optlist:
+	if(o == "-h"):
+    	    print("svec-cl: a tool for loading the White Rabbit PTP Core firmware on SVEC carriers")
+	    print("usage: %s [-a] [-l] [-u lun] [-s slot] wrc_firmware_file.bin" % sys.argv[0])
+            print(" -h:             prints this message")
+            print(" -l:             lists all SVECs running a WR PTP Core in the system")
+            print(" -u:             specifies the LUN of the card to be configured")
+            print(" -s:             specifies the slot of the card to be configured")
+            print(" -a:             programs all SVECs with built-in WR PTP Core")
+            print(" If no slot/LUN is given, the first available card is programmed.")
+            print("")
+            return
+        elif (o == "-a"):
+    	    program_all = True
+    	elif (o == "-u"):
+    	    lun = int(a, 0)
+    	elif (o == "-s"):
+    	    slot = int(a, 0)
+    	elif (o == "-l"):
+    	    list_all = True
+
+    if not list_all:
+	if len(args) == 0:
+	    print("Expected an file name with the firmware after the arguments.")
+	    return
+	filename = args[0]
+    else:
+	list_all_wrcores()
+	return
+	
+    if(program_all):
+	program_all_wrcores(filename)
+	return
+
+    if not svec.attach(lun=lun,slot=slot):
+	print("Can't find a SVEC card matching given LUN/slot pair")
+	sys.exit(-1)
+    load_wrcore(svec,filename)
+    
+
+main()
