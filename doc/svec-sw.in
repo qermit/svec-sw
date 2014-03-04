@@ -32,7 +32,7 @@
 @comment %**end of header
 
 @setchapternewpage off
-@set update-month September 2013
+@set update-month March 2014
 @include version.in
 
 @finalout
@@ -41,7 +41,7 @@
 @title SVEC Software Support
 @subtitle A driver for the SVEC card and its FMC modules
 @subtitle Git revision @code{@value{git-revision}} (@value{git-date})
-@author Luis F. Ruiz Gago, Tomasz Włostowski (CERN BE-CO-HT)
+@author Luis F. Ruiz Gago, Tomasz Wlostowski (CERN BE-CO-HT)
 @end titlepage
 @headings single
 
@@ -372,6 +372,42 @@ For example, the command below configures the card in slot @code{12} to use an A
 
 @b{Note:} @code{svec-config} requires a Python interpreter.
 
+@section svec-wrc-loader
+
+@code{svec-wrc-loader} is a tool for loading the firmware of the White Rabbit PTP core that may be embedded in the Application FPGA gateware.
+The tool inputs a number of command line switches, followed by a binary file containing the firmware to be programmed.
+@table @code
+
+@item @code{-l}
+
+Printss the list of all SVECs in the system containing a WR Core in currently loaded gateware.
+    
+@item @code{-u lun}
+
+Logical Unit number of the card to be programmed. The card must be selected either by this, or by @code{-s} parameter.
+
+@item @code{-s slot}
+
+Slot number of the card to be programmed. The card must be selected either by this, or by @code{-u} parameter.
+
+@item @code{-a}
+
+Programs all SVECs in the system (use with care!).
+
+@end table
+
+For example, the command below loads the WR Core firmware for the card in slot @code{12}:
+@smallexample
+        ./svec-wrc-loader -s 12 wrc-firmware.bin
+@end smallexample
+
+@b{Note 1:} @code{svec-wrc-loader} requires the cards to have gatewares loaded. Usually, one should use it after loading appropriate
+FMC drivers.
+
+@b{Note 2:} @code{svec-wrc-loader} relies on SDB information embedded in the AFPGA bitstream to look up for the WR core. It will not work with bitstreams
+that don't contain SDB.
+
+@b{Note 3:} @code{svec-wrc-loader} requires a Python interpreter.
 
 @c ##########################################################################
 @node Bugs and Missing Features
