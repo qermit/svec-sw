@@ -28,7 +28,15 @@ def sysfs_write(path, value):
 	print ("An I/O error occured when trying to write to the SVEC sysfs attribute (%s)" % path)
 	print ("The most common reason is that the program does not have write permissions (try running me as root)")
 	sys.exit(-1)
-    f.write("0x%x\n" % value)
+
+    if type(value) is list:
+	vtab = value
+    else:
+        vtab = [ value ];
+    s = ""
+    for v in vtab:
+	s += "0x%x " % v
+    f.write(s + "\n")
     f.close()
 
 class CSvec:
@@ -54,6 +62,10 @@ class CSvec:
 
 		s += 1
 	return False
+
+    def writel (self, addr, data):
+	sysfs_write(self.path + "/vme_addr", addr)
+	sysfs_write(self.path + "/vme_data", data)
 
     def writel (self, addr, data):
 	sysfs_write(self.path + "/vme_addr", addr)
@@ -127,11 +139,16 @@ def load_wrcore(dev, filename):
 	pass
     
     offset = 0
-    for i in range(0, (len(image)+3)/4):
-	d = struct.unpack(">I", image[i*4:i*4+4])
+    nwords = (len(image)+3)/4
+    for i in range(0, nwords, 128):
+	count = min (nwords - i, 128)
+	d=[]
+	for j in range(0, count):
+	    d += struct.unpack(">I", image[(i+j)*4:(i+j)*4+4])
+	    
 	# fixme: the WRCore CPU RAM has no unique SDB ID. We simply reference to it relatively to the syscon address 
 	dev.writel(syscon_addr - 0x20400 + offset, d)
-	offset += 4
+	offset += count * 4
 
     # start the CPU
     dev.writel(syscon_addr, 0x0deadbee)
