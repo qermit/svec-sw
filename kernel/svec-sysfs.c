@@ -232,18 +232,46 @@ ATTR_SHOW_CALLBACK(vme_data)
 	return snprintf(buf, PAGE_SIZE, "0x%x\n", data);
 }
 
+static int __next_token(char **str, char *buf, int buf_length)
+{
+	char *p = *str, *tok;
+	int len;
+
+	while(isspace (*p))
+		p++;
+
+	if(*p == 0)
+		return 0;
+	tok = p;
+	while(*p && !isspace(*p))
+		p++;
+
+	len = min(p - tok + 1, buf_length - 1);
+	memcpy(buf, tok, len);
+	buf[len - 1] = 0;
+
+	*str = p;
+	return 1;
+}
+
 ATTR_STORE_CALLBACK(vme_data)
 {
-	uint32_t data;
 	struct svec_dev *card = dev_get_drvdata(pdev);
-
+	uint32_t data;
+	uint32_t addr = card->vme_raw_addr;
+	char *args = (char *) buf, token[16];
+	
 	if (!card->cfg_cur.configured)
 		return -EAGAIN;
 
-	if (sscanf(buf, "%i", &data) != 1)
-		return -EINVAL;
+	while (__next_token (&args, token, sizeof(token)))
+	{
+		if (sscanf(token, "%i", &data) != 1)
+			return -EINVAL;
 
-	iowrite32be(data, card->map[MAP_REG]->kernel_va + card->vme_raw_addr);
+		iowrite32be(data, card->map[MAP_REG]->kernel_va + addr);
+		addr += 4;
+	}
 
 	return count;
 }

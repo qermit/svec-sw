@@ -313,6 +313,7 @@ Reading the @code{configured} file lets you check if the card has been already c
 @section Raw access to the VME registers
 This is handled via the @code{vme_addr} and @code{vme_data} attributes.
 In order to read something from a given address, put the address in @code{vme_addr} file and then read the @code{vme_data} file. Writes are done in the same way.
+If more than one value is written into @code{vme_data}, the driver will perform multiple transfers, incrementing the address by 32 bits at each transfer.
 
 @b{Note:} Raw VME access through @code{sysfs} works only if the VME register window is correctly configured.
 
