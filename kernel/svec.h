@@ -19,7 +19,7 @@
 
 #define SVEC_DEFAULT_IDX { [0 ... (SVEC_MAX_DEVICES-1)] = -1 }
 #define SVEC_DEFAULT_VME_AM  { [0 ... (SVEC_MAX_DEVICES-1)] = 0x39 }
-#define SVEC_DEFAULT_VME_SIZE  { [0 ... (SVEC_MAX_DEVICES-1)] = 0x100000 }
+#define SVEC_DEFAULT_VME_SIZE  { [0 ... (SVEC_MAX_DEVICES-1)] = 0x80000 }
 #define SVEC_DEFAULT_IRQ_LEVEL { [0 ... (SVEC_MAX_DEVICES-1)] = 0x2 }
 
 #define SVEC_UNINITIALIZED_VME_BASE  { [0 ... (SVEC_MAX_DEVICES-1)] = 0xffffffff }

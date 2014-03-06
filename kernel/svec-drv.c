@@ -546,8 +546,8 @@ int svec_validate_configuration(struct device *pdev, struct svec_config *cfg)
 		max_size = 0x10000000;
 		break;
 	case VME_A24_USER_DATA_SCT:
-		addr_mask = 0x00f00000;
-		max_size = 0x100000;
+		addr_mask = 0x00f80000;
+		max_size = 0x0800000;
 		break;
 	default:
 		dev_err(pdev, "Unsupported VME address modifier 0x%x\n",
