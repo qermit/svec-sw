@@ -547,11 +547,21 @@ int svec_validate_configuration(struct device *pdev, struct svec_config *cfg)
 		break;
 	case VME_A24_USER_DATA_SCT:
 		addr_mask = 0x00f80000;
-		max_size = 0x0800000;
+		max_size  = 0x00080000;
 		break;
 	default:
 		dev_err(pdev, "Unsupported VME address modifier 0x%x\n",
 			cfg->vme_am);
+		return 0;
+	}
+
+	if (cfg->vme_am == VME_A24_USER_DATA_SCT &&
+	    cfg->vme_base >= 0xf00000)
+	{
+		dev_err(pdev,
+			"VME base address for A24 mode must not be >= 0xf00000 due to "
+			"addressing conflict with the Tsi148 VME bridge. Please change "
+			"your card's configuration.\n");
 		return 0;
 	}
 
