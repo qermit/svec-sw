@@ -530,7 +530,7 @@ int svec_setup_csr(struct svec_dev *svec)
    for instance), so it's still possible for a determinate user to screw something up. */
 int svec_validate_configuration(struct device *pdev, struct svec_config *cfg)
 {
-	uint32_t addr_mask;
+	uint32_t addr_mask, start_masked, end_masked;
 	uint32_t max_size;
 
 	/* no base address assigned? silently return. */
@@ -547,7 +547,7 @@ int svec_validate_configuration(struct device *pdev, struct svec_config *cfg)
 		break;
 	case VME_A24_USER_DATA_SCT:
 		addr_mask = 0x00f80000;
-		max_size  = 0x00080000;
+		max_size  = 0x00100000;
 		break;
 	default:
 		dev_err(pdev, "Unsupported VME address modifier 0x%x\n",
@@ -565,10 +565,22 @@ int svec_validate_configuration(struct device *pdev, struct svec_config *cfg)
 		return 0;
 	}
 
+	start_masked = cfg->vme_base & ~(cfg->vme_size - 1);
+	end_masked = (cfg->vme_base + cfg->vme_size - 1) & ~(cfg->vme_size - 1);
+
+	printk("start-m %x end-m %x\n", start_masked, end_masked);
+
 	if (cfg->vme_base & ~addr_mask) {
 		dev_err(pdev,
 			"VME base address incorrectly aligned (mask = 0x%x)\n",
 			addr_mask);
+		return 0;
+	}
+
+	if (start_masked != end_masked) {
+		dev_err(pdev,
+			"VME base address incorrectly aligned (start_masked = 0x%x, end_masked = 0x%x)\n",
+			start_masked, end_masked);
 		return 0;
 	}
 
