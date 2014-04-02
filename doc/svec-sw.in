@@ -32,7 +32,7 @@
 @comment %**end of header
 
 @setchapternewpage off
-@set update-month March 2014
+@set update-month April 2014
 @include version.in
 
 @finalout
@@ -40,7 +40,7 @@
 @titlepage
 @title SVEC Software Support
 @subtitle A driver for the SVEC card and its FMC modules
-@subtitle Git revision @code{@value{git-revision}} (@value{git-date})
+@subtitle Release @code{2014.04}, git revision @code{@value{git-revision}} (@value{git-date})
 @author Luis F. Ruiz Gago, Tomasz Wlostowski (CERN BE-CO-HT)
 @end titlepage
 @headings single
@@ -56,11 +56,10 @@
 @node Top
 @top Introduction
 
-This is the manual for the SVEC device driver. SVEC (@i{Simple
-VME FMC Carrier}) is a two-slot FPGA Mezzanine Carrier in VME64x form factor, developed at
-@url{http://www.ohwr.org/projects/svec}. This manual is part of the
-associated software project, hosted at
-@url{http://www.ohwr.org/projects/svec-sw}. The latest version of
+This is the manual for the SVEC device driver. The SVEC (@i{Simple
+VME FMC Carrier}) is a two-slot FPGA Mezzanine Carrier in a VME64x form factor, developed at CERN.
+
+The hardware and gateware design can is hosted at @url{http://www.ohwr.org/projects/svec}. This manual is part of the associated software project, hosted at @url{http://www.ohwr.org/projects/svec-sw}. The latest version of
 this work is always available in the @i{git} repository at @code{ohwr.org}.
 
 @c ##########################################################################
@@ -89,30 +88,50 @@ The kernel module that is part of this package lives in the @i{kernel}
 subdirectory. To compile it, you need to 
 set the @i{LINUX} variable in your environment with the top directory of
 the kernel sources for the version your are going to run the driver under.
-The driver compiles against Linux-2.6.24 and it should work in later ones,
-but I'm only testing it with 3.2.43-rt63.
+The driver compiles against 3.x series kernels (x86 and x86-64). Our main testing platform
+is the 3.2.43-rt63 kernel.
 
 To compile run ``@code{make}'' with the previous variable set or 
 ``@code{make LINUX=<top_directory_of_kernel_sources>}''. 
 
 Up to now Makefile doesn't perform an automatic module
 installation under a standard Linux installation, since we're mainly using it 
-on CERN machines with their particular way of doing things.
+on CERN machines with their particular way of doing things. The most straightforward way
+of installing the driver is to simply copy @code{fmc.ko} and @code{svec.ko} to @code{/lib/modules/[your-kernel-version]}.
 
 Please note that by default the package compiles the
-@i{fmc-bus} modules, too (the project is a @i{git} submodule).
+@i{fmc-bus} modules, too (the project is a @i{git} submodule). It is possible to provide the path to 
+an external @i{fmc-bus} tree through @code{FMC_DRV} parameter.
+
+
+@section Gateware installation
+
+The SVEC driver relies on a so-called golden bitstream, which is used during mezzanine enumeration to discover the FMCs inserted in each carrier slot.
+
+The default golden bitstream name is @code{svec-golden.bin}. The file will be always available
+in the @i{Releases} section of the @i{SVEC} project on @code{ohwr.org}: @url{http://www.ohwr.org/projects/svec/wiki/Releases}. This version of the driver uses the Release 2.0 of the golden bitstream. 
+
+To install the golden bitstream, simply download it from the Release page and store it as 
+@code{/lib/firmware/fmc/svec-golden.bin}.
+
+@b{Note:} the gateware can be automatically downloaded and installed to @code{/lib/firmware/fmc} through the command:
+@smallexample
+        make gateware_install
+@end smallexample
+
 
 @c ##########################################################################
 @node The @code{svec.ko} driver
 @chapter The @code{svec.ko} driver
 
 The @code{svec.ko} is the only kernel module produced during compilation. It depends on @code{fmc.ko}, that must
-be loaded first (unless you rely on automatic dependencies), and the Linux
-VME bus infrastructure. It won't detect any SVECs unless a VME bus master/bridge driver is loaded
+be loaded first (unless you rely on automatic dependencies), and the Linux VME bus infrastructure. 
+It won't detect any SVECs unless a VME bus master/bridge driver is loaded
 (such as the Tundra TSI148 @code{vmebridge.ko} driver used at CERN).
 
 During load time, the driver must be supplied with the list of the slots occupied by SVEC cards and the LUNs that will
-identify them in the system. Despite the SVEC being a VME64x card, there is no autodetection mechanism provided as it may be unsafe for certain older VME devices. The VME bus configuration can be supplied either when loading the driver, through module parameters or at any later time
+identify them in the system. Despite the SVEC being a VME64x card, there is no autodetection mechanism provided as it may be unsafe for certain older VME devices. 
+The VME bus configuration can be supplied either when loading the driver, through module parameters or at any later time
 through a sysfs interface (see @ref{SVEC Module Parameters} and @ref{User-Space Tools}) .
 
 The example below shows how to load the driver on a system with two SVECs installed in slots 4 and 12:
@@ -143,11 +162,6 @@ For each new SVEC device found on the system, the driver performs the following 
 
 Failure of any of the above steps is considered fatal.
 
-The suggested @code{svec-golden.bin} gateware binary is always available
-from the @i{files} area of the @i{svec-sw} project on @code{ohwr.org}.
-The binary version to be used with this software version is at
-@url{http://www.ohwr.org/projects/svec-sw/files}.
-
 @b{Note:} currently the SVEC driver does not re-write the golden
 binary file when the sub-driver releases control of the card. This
 allows a further driver to make use of an existing binary, which may be
@@ -176,7 +190,7 @@ are arrays where each entry corresponds to one SVEC card.
 
 @item vme_size
 
-	@b{Optional.} VME Application FPGA window size, in bytes. Default is @code{0x100000}.
+	@b{Optional.} VME Application FPGA window size, in bytes. Default is @code{0x10000000} for A32 and @code{0x80000} for A24.
 
 @item vme_am
 
@@ -193,9 +207,7 @@ are arrays where each entry corresponds to one SVEC card.
 @item fw_name
 
 	@b{Optional.} String parameter indicating the golden bitstream name,
-	(@code{fmc/svec-golden.bin} by default). In a near future a default
-	golden will be loaded - hopefully - from an onboard Flash memory
-	and this parameter might be used to override it.
+	(@code{fmc/svec-golden.bin} by default). 
 
 @item show_sdb
 
@@ -406,7 +418,7 @@ For example, the command below loads the WR Core firmware for the card in slot @
 FMC drivers.
 
 @b{Note 2:} @code{svec-wrc-loader} relies on SDB information embedded in the AFPGA bitstream to look up for the WR core. It will not work with bitstreams
-that don't contain SDB.
+that don't contain an SDB descriptor.
 
 @b{Note 3:} @code{svec-wrc-loader} requires a Python interpreter.
 
@@ -417,7 +429,6 @@ that don't contain SDB.
 @itemize @bullet
 
 @item Userspace-triggered firmware loading (that doesn't conflict with the FMCs).
-@item Flash programming tool.
 
 @end itemize
 
