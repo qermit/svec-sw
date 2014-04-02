@@ -1,8 +1,4 @@
-# Assign sensible defaults, but allow overriding with environment variables.
-
-CPU	?= L865
-KVER	?= 3.2.43-rt63
-LINUX ?= "/acc/sys/$(CPU)/usr/src/kernels/$(KVER)"
+LINUX ?= /lib/modules/$(shell uname -r)/build
 
 FMC_DRV ?= $(shell ../check-fmc-bus)
 export FMC_DRV
@@ -30,9 +26,7 @@ all: modules
 .PHONY: all modules clean help install modules_install
 
 modules help install modules_install:
-	$(MAKE) -C $(LINUX) M=$(shell pwd) CPU=$(CPU) \
-		KVER=$(KVER) GIT_VERSION=$(GIT_VERSION) \
-		$@
+	$(MAKE) -C $(LINUX) M=$(shell pwd) GIT_VERSION=$(GIT_VERSION) $@
 
 # be able to run the "clean" rule even if $(LINUX) is not valid
 clean:
