@@ -568,8 +568,6 @@ int svec_validate_configuration(struct device *pdev, struct svec_config *cfg)
 	start_masked = cfg->vme_base & ~(cfg->vme_size - 1);
 	end_masked = (cfg->vme_base + cfg->vme_size - 1) & ~(cfg->vme_size - 1);
 
-	printk("start-m %x end-m %x\n", start_masked, end_masked);
-
 	if (cfg->vme_base & ~addr_mask) {
 		dev_err(pdev,
 			"VME base address incorrectly aligned (mask = 0x%x)\n",
@@ -733,8 +731,11 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 	/* see if we are really talking to a SVEC */
 	if (svec_check_bootloader_present(svec) < 0) {
 		dev_err(pdev,
-			"No bootloader found. Is there a SVEC card installed in slot %d?\n",
+			"ERROR: The SVEC expected in slot %d is not responding, "
+			"the mezzanines installed on it will not be visible in the" 
+			"system. Please check if the card is correctly installed.\n",
 			svec->slot);
+
 		error = -ENODEV;
 		goto failed;
 	}
