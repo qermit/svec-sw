@@ -11,6 +11,8 @@
 #include <linux/device.h>
 #include <linux/ctype.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
+
 #include "svec.h"
 
 #define ATTR_SHOW_CALLBACK(name) \
@@ -24,38 +26,57 @@
 					const char *buf, \
 					size_t count)
 
-ATTR_SHOW_CALLBACK(bootloader_active)
+#define FW_CMD_RESET 0
+#define FW_CMD_PROGRAM 1
+
+static int svec_fw_cmd_reset (struct svec_dev * card)
 {
-	struct svec_dev *card = dev_get_drvdata(pdev);
-	size_t ret;
-	int active;
-
-	if (test_bit(SVEC_FLAG_FMCS_REGISTERED, &card->flags))
-		active = 0;
-	else {
-		active = svec_is_bootloader_active(card);
-		if (active < 0)
-			return active;
-	}
-
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", active);
-
-	return ret;
-}
-
-ATTR_STORE_CALLBACK(bootloader_active)
-{
-	struct svec_dev *card = dev_get_drvdata(pdev);
-
-	if (test_bit(SVEC_FLAG_FMCS_REGISTERED, &card->flags))
+	int err = 0;
+	if (test_bit (SVEC_FLAG_FMCS_REGISTERED, &card->flags))
 	{
-		svec_fmc_destroy(card);
-		svec_irq_exit(card);
+		svec_fmc_destroy (card);
+		svec_irq_exit (card);
 	}
 
-	svec_bootloader_unlock(card);
-	return count;
+	if (!card->map[MAP_CR_CSR])
+		err = svec_map_window (card, MAP_CR_CSR);
+
+	if(err < 0)
+		return err;
+
+	svec_bootloader_unlock (card);
+
+	if (!svec_is_bootloader_active (card))
+		return -ENODEV;
+
+	if (card->fw_buffer)
+		kfree (card->fw_buffer);
+
+	card->fw_buffer = vmalloc (SVEC_MAX_GATEWARE_SIZE);
+	card->fw_length = 0;
+	card->fw_hash = 0xffffffff;
+	return 0;
 }
+
+static int svec_fw_cmd_program (struct svec_dev * card)
+{
+	int err;
+	if (!card->fw_buffer || !card->fw_length)
+	    return -EINVAL;
+
+	err = svec_load_fpga (card, card->fw_buffer, card->fw_length);
+	
+	vfree (card->fw_buffer);
+
+	card->fw_buffer = NULL;
+	card->fw_length = 0;
+	if (err < 0)
+		return err;
+
+	svec_reconfigure (card);
+	return 0;
+}
+
 
 ATTR_SHOW_CALLBACK(firmware_name)
 {
@@ -81,13 +102,56 @@ ATTR_STORE_CALLBACK(firmware_name)
 	struct svec_dev *card = dev_get_drvdata(pdev);
 	int error;
 
-	pr_debug("storing firmware name [%s] length %zd\n", buf, count);
 	error = svec_load_fpga_file(card, buf);
 
 	if (!error)
 		snprintf(card->fw_name, PAGE_SIZE, "%s", buf);
 
 	return count;
+}
+
+ATTR_STORE_CALLBACK(firmware_cmd)
+{
+	int cmd;
+
+	struct svec_dev *card = dev_get_drvdata(pdev);
+
+	if (sscanf(buf, "%i", &cmd) != 1)
+		return -EINVAL;
+
+	switch(cmd)
+	{
+	    case FW_CMD_RESET:
+		return svec_fw_cmd_reset (card);
+	    case FW_CMD_PROGRAM:
+		return svec_fw_cmd_program (card);
+	    default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+ATTR_STORE_CALLBACK(firmware_blob)
+{
+	struct svec_dev *card = dev_get_drvdata(pdev);
+
+	if (!card->fw_buffer)
+	    return -EAGAIN;
+	
+	if (card->fw_length + count - 1 >= SVEC_MAX_GATEWARE_SIZE)
+	    return -EINVAL;
+
+	memcpy (card->fw_buffer + card->fw_length, buf, count);
+	card->fw_length += count;
+
+	return count;
+    
+}
+
+ATTR_SHOW_CALLBACK(dummy_attr)
+{
+	return snprintf(buf, PAGE_SIZE, "0");
 }
 
 ATTR_SHOW_CALLBACK(interrupt_vector)
@@ -351,21 +415,17 @@ ATTR_SHOW_CALLBACK(slot)
 	return snprintf(buf, PAGE_SIZE, "%d\n", card->slot);
 }
 
-/********************** SVEC board attributes ***********************/
-
-/* bootloader activation:
-  read: 1 if bootloader mode is active, 0 if not
-  write: 1 to enable bootloader (and deregister attached fmcs)
-         0 to disable bootloader (and register attached fmcs if the card is configured) 
-*/
-
-static DEVICE_ATTR(bootloader_active,
-		   S_IWUSR | S_IRUGO,
-		   svec_show_bootloader_active, svec_store_bootloader_active);
-
 static DEVICE_ATTR(firmware_name,
 		   S_IWUSR | S_IRUGO,
 		   svec_show_firmware_name, svec_store_firmware_name);
+
+static DEVICE_ATTR(firmware_cmd,
+		   S_IWUSR | S_IRUGO,
+		   svec_show_dummy_attr, svec_store_firmware_cmd);
+
+static DEVICE_ATTR(firmware_blob,
+		   S_IWUSR | S_IRUGO,
+		   svec_show_dummy_attr, svec_store_firmware_blob);
 
 /* Helper attribute to find the physical slot for a given VME LUN. Used by
   the userspace tools. */
@@ -429,8 +489,9 @@ static DEVICE_ATTR(vme_data,
 		   S_IWUSR | S_IRUGO, svec_show_vme_data, svec_store_vme_data);
 
 static struct attribute *svec_attrs[] = {
-	&dev_attr_bootloader_active.attr,
 	&dev_attr_firmware_name.attr,
+	&dev_attr_firmware_blob.attr,
+	&dev_attr_firmware_cmd.attr,
 	&dev_attr_interrupt_vector.attr,
 	&dev_attr_interrupt_level.attr,
 	&dev_attr_vme_base.attr,
@@ -458,8 +519,6 @@ int svec_create_sysfs_files(struct svec_dev *card)
 
 	if (error)
 		return error;
-
-//      sysfs_create_bin_file(&card->dev->kobj, &svec_firmware_attr);
 
 	return error;
 }
