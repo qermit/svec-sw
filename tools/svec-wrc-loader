@@ -50,6 +50,8 @@ class CSvec:
     	    self.path = vme_dir + subdir;
     	    m = re.match("svec\.(\d+)", subdir)
     	    if m:
+    		if not os.path.isfile(self.path + "/slot"):
+    		    continue
     		self.slot = sysfs_read(self.path + "/slot")
     		self.lun = int(m.group(1))
 
