@@ -498,6 +498,15 @@ int svec_setup_csr(struct svec_dev *svec)
 
 	memset(ader, 0, sizeof(ader));
 
+	/* Below is a hack to keep the VME core function disabling work on bitstreams
+	   containing a buggy VME core (commit b2fc3ce7): set bit 0 (XAM_MODE) to 1
+	   to disable given function (because neither function 0 nor 1 have anything 
+	   in their extended capability sets, setting XAM_MODE = 1 effectively disables 
+	   the function. */
+
+	ader[0][3] = 1; 
+	ader[1][3] = 1;
+
 	/* do address relocation for FUN0/1 */
 	ader[func][0] = (svec->cfg_cur.vme_base >> 24) & 0xFF;
 	ader[func][1] = (svec->cfg_cur.vme_base >> 16) & 0xFF;
