@@ -9,8 +9,8 @@ ccflags-y += -I$(FMC_DRV)/include
 ccflags-y += -DDEBUG
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
-KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.vme
-KBUILD_EXTRA_SYMBOLS += $(M)/Module.symvers.fmc
+KBUILD_EXTRA_SYMBOLS += $(obj)/Module.symvers.vme
+KBUILD_EXTRA_SYMBOLS += $(obj)/Module.symvers.fmc
 
 obj-m := svec.o
 
