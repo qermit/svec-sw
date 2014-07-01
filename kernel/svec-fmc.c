@@ -69,6 +69,8 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	}
 	fmc_free_sdb_tree(fmc);
 
+	fmc->flags &= ~FMC_DEVICE_HAS_GOLDEN;
+
 	/* load the firmware */
 	ret = svec_load_fpga(svec, fw->data, fw->size);
 	if (ret < 0) {
@@ -78,6 +80,8 @@ static int svec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 
 	/* Configure & activate CSR functions depending on chosen AM */
 	svec_setup_csr(svec);
+
+	fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
 
       out:
 	release_firmware(fw);
@@ -107,9 +111,9 @@ static int svec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 static int svec_write_ee(struct fmc_device *fmc, int pos,
 			 const void *data, int len)
 {
-
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
+		
 	return svec_eeprom_write(fmc, pos, data, len);
 }
 
@@ -191,6 +195,9 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 	 * could be wrong at second reprogramming, as it is called
 	 * n times, one per slot */
 
+	fmc->flags &= ~FMC_DEVICE_HAS_GOLDEN;
+	fmc->flags &= ~FMC_DEVICE_HAS_CUSTOM;
+
 	ret = svec_load_golden(svec);
 	if (ret) {
 		dev_err(svec->dev, "Cannot load golden bitstream: %d\n", ret);
@@ -205,6 +212,8 @@ int svec_fmc_prepare(struct svec_dev *svec, unsigned int fmc_slot)
 		return ret;
 	}
 
+	fmc->flags |= FMC_DEVICE_HAS_GOLDEN;
+	
 	ret = svec_i2c_init(fmc);
 	if (ret) {
 		dev_err(svec->dev, "Error %d on svec i2c init", ret);
