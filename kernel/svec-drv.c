@@ -370,6 +370,11 @@ static int svec_remove(struct device *pdev, unsigned int ndev)
 
 	svec_irq_exit(svec);
 
+	if (svec->fw_name != NULL)
+		kfree(svec->fw_name);
+	if (svec->fw_buffer != NULL)
+		vfree(svec->fw_buffer);
+
 	svec_unmap_window(svec, MAP_CR_CSR);
 	svec_unmap_window(svec, MAP_REG);
 	svec_remove_sysfs_files(svec);
@@ -705,6 +710,7 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 	struct svec_dev *svec;
 	const char *name;
 	int error = 0;
+	char *tmp_ptr;
 
 	if (lun[ndev] < 0 || lun[ndev] >= SVEC_MAX_DEVICES) {
 		dev_err(pdev, "Card lun %d out of range [0..%d]\n",
@@ -751,10 +757,21 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 
 	/* Get firmware name */
 	if (ndev < fw_name_num) {
-		svec->fw_name = fw_name[ndev];
+		tmp_ptr = fw_name[ndev];
 	} else {
-		svec->fw_name = svec_fw_name;	/* Default value */
+		tmp_ptr = svec_fw_name;
 	}
+
+	svec->fw_name = kmalloc(sizeof(char) * (strlen(tmp_ptr) + 1 ), GFP_KERNEL);
+	if (!svec->fw_name)
+	{
+		error = -ENOMEM;
+		goto failed_fw_name;
+	}
+	
+	strcpy(svec->fw_name, tmp_ptr);
+
+	svec->fw_buffer = NULL;
 
 	if(svec->verbose)
 	    dev_info(pdev, "using '%s' golden bitstream.", svec->fw_name);
@@ -783,6 +800,8 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 	return 0;
 
 	svec_remove_sysfs_files(svec);
+      failed_fw_name:
+	/// @todo cleanup what have beend done in svec_check_bootloader_present
       failed:
 	kfree(svec);
 

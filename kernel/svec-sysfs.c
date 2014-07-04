@@ -49,10 +49,9 @@ static int svec_fw_cmd_reset (struct svec_dev * card)
 	if (!svec_is_bootloader_active (card))
 		return -ENODEV;
 
-	if (card->fw_buffer)
-		kfree (card->fw_buffer);
+	if (card->fw_buffer == NULL)
+		card->fw_buffer = vmalloc (SVEC_MAX_GATEWARE_SIZE);
 
-	card->fw_buffer = vmalloc (SVEC_MAX_GATEWARE_SIZE);
 	card->fw_length = 0;
 	card->fw_hash = 0xffffffff;
 	return 0;
@@ -102,10 +101,22 @@ ATTR_STORE_CALLBACK(firmware_name)
 	struct svec_dev *card = dev_get_drvdata(pdev);
 	int error;
 
-	error = svec_load_fpga_file(card, buf);
+	char *tmp_buf = strim((char *)buf);
 
-	if (!error)
-		snprintf(card->fw_name, PAGE_SIZE, "%s", buf);
+	if (ksize(card->fw_name) < strlen(buf)+1) 
+		card->fw_name = krealloc(card->fw_name, sizeof(char) * (strlen(tmp_buf)+1), GFP_KERNEL);
+
+	if (! card->fw_name) {
+		return -ENOMEM;		
+	}
+
+	strcpy(card->fw_name, buf);
+
+	error = svec_load_fpga_file(card, card->fw_name);
+
+	if (error) {
+		card->fw_name[0] = '\0';
+	}
 
 	return count;
 }
@@ -113,6 +124,7 @@ ATTR_STORE_CALLBACK(firmware_name)
 ATTR_STORE_CALLBACK(firmware_cmd)
 {
 	int cmd;
+	int result = 0;
 
 	struct svec_dev *card = dev_get_drvdata(pdev);
 
@@ -122,14 +134,19 @@ ATTR_STORE_CALLBACK(firmware_cmd)
 	switch(cmd)
 	{
 	    case FW_CMD_RESET:
-		return svec_fw_cmd_reset (card);
+		result = svec_fw_cmd_reset (card);
+		break;
 	    case FW_CMD_PROGRAM:
-		return svec_fw_cmd_program (card);
+		result = svec_fw_cmd_program (card);
+		break;
 	    default:
 		return -EINVAL;
 	}
 
-	return count;
+	if (result < 0)
+		return result;
+	else
+		return count;
 }
 
 ATTR_STORE_CALLBACK(firmware_blob)
