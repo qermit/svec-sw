@@ -782,8 +782,7 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 
 	return 0;
 
-	svec_remove_sysfs_files(svec);
-      failed:
+failed:
 	kfree(svec);
 
 	return error;
