@@ -66,11 +66,12 @@ struct svec_dev {
 	int lun;
 	int slot;
 	unsigned long flags;
+	char *fw_name;
 	struct device *dev;
 	char name[16];
 	char driver[16];
 	char description[80];
-
+	uint32_t fw_hash;
 	struct vme_mapping *map[__MAX_MAP];
 	struct svec_config cfg_cur, cfg_new;
 
@@ -87,8 +88,6 @@ struct svec_dev {
 	uint32_t vme_raw_addr;	/* VME address for raw VME I/O through vme_addr/vme_data attributes */
 	int verbose;
 
-	char *fw_name;
-	uint32_t fw_hash;
 	void *fw_buffer;
 	int fw_length;
 };
