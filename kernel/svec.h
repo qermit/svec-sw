@@ -40,7 +40,8 @@
 
 enum svec_map_win {
 	MAP_CR_CSR = 0,		/* CR/CSR */
-	MAP_REG			/* A32/A24/A16 space */
+	MAP_REG,		/* A32/A24/A16 space */
+	__MAX_MAP,              /* Maximum number of maps */
 };
 
 struct svec_config {
@@ -69,7 +70,8 @@ struct svec_dev {
 	char name[16];
 	char driver[16];
 	char description[80];
-	struct vme_mapping *map[2];
+
+	struct vme_mapping *map[__MAX_MAP];
 	struct svec_config cfg_cur, cfg_new;
 
 	struct fmc_device *fmcs[SVEC_N_SLOTS];
