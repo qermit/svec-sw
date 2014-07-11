@@ -48,6 +48,8 @@ class SVEC:
 	    self.conf_valid = 0
 	self.interrupt_level = read_sysfs(self.lun, "interrupt_level")
 	self.use_fmc = read_sysfs(self.lun, "use_fmc")
+	self.gateware = None
+
 
     def set_am(self, am):
         if(am == "A24"):
@@ -70,6 +72,9 @@ class SVEC:
 	self.vme_base = base
     	self.conf_updated = True
 
+    def set_gateware(self, v):
+    	self.gateware = v
+
     def set_vector(self, v):
     	if( v < 0x0 or v > 0xff ):
 	    raise Exception("VME interrupt vector out of range")
@@ -85,7 +90,7 @@ class SVEC:
     def enable_fmcs(self, e):
 	self.use_fmc = e 
     	self.conf_updated = True
-    
+
     def commit(self):
 	if not self.conf_updated:
 	    return # nothing changed, nothing to commit
@@ -95,6 +100,8 @@ class SVEC:
 	write_sysfs(self.lun, "interrupt_vector", "0x%02x" % self.interrupt_vector)
 	write_sysfs(self.lun, "interrupt_level", "%d" % self.interrupt_level)
 	write_sysfs(self.lun, "use_fmc", "%d" % self.use_fmc)
+	if self.gateware != None:
+	    write_sysfs(self.lun, "firmware_name", self.gateware)
 	write_sysfs(self.lun, "configured", "1") # commit new config!
     
     def __str__(self):
@@ -136,16 +143,16 @@ def __main__():
     try:
 	find_svecs()
 	
-	optlist, args = getopt.getopt(sys.argv[1:], 'hlu:s:a:b:f:w:k:v:')
+	optlist, args = getopt.getopt(sys.argv[1:], 'hlu:s:a:b:f:w:k:v:g:')
     
         if len(optlist) == 0:
-    	    print("usage: %s [-h] [-l] [-u lun] [-s slot] [-a am] [-b base] [-w size] [-v vector] [-k level] [-f enable]" % sys.argv[0])
+    	    print("usage: %s [-h] [-l] [-u lun] [-s slot] [-a am] [-b base] [-w size] [-v vector] [-k level] [-f enable] [-g gateware_name]" % sys.argv[0])
     	    return 0
     	
 	for o,a in optlist:
 	    if(o == "-h"):
 		print("svec-config: a tool for configuring VME interface of SVEC cards")
-    		print("usage: %s [-h] [-l] [-u lun] [-s slot] [-a am] [-b base] [-w size] [-v vector] [-k level] [-f enable]" % sys.argv[0])
+    		print("usage: %s [-h] [-l] [-u lun] [-s slot] [-a am] [-b base] [-w size] [-v vector] [-k level] [-f enable] [-g gateware_name]" % sys.argv[0])
 		print(" -h:             prints this message")
 		print(" -l:             lists all SVECs in the system")
 		print(" -u:             specifies the LUN of the card to be configured")
@@ -156,6 +163,7 @@ def __main__():
 		print(" -v vector:      specifies the VME interrupt vector")
 		print(" -k level:       specifies the VME interrupt level")
 		print(" -f enable:      enables/disables probing FMC kernel drivers for given carrier\n")
+		print(" -g gateware:    gateware name to load\n")
 		return 0
 	
 
@@ -175,6 +183,8 @@ def __main__():
 		card.set_level(int(a,0))
 	    elif (o == "-f"):
 		card.enable_fmcs(int(a, 0))
+	    elif (o == "-g"):
+		card.set_gateware(a)
 	    elif (o == "-l"):
 	        dump_svecs()
 		return 0

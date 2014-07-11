@@ -9,8 +9,8 @@ ccflags-y += -I$(FMC_DRV)/include
 ccflags-y += -DDEBUG
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
-KBUILD_EXTRA_SYMBOLS += $(obj)/Module.symvers.vme
-KBUILD_EXTRA_SYMBOLS += $(obj)/Module.symvers.fmc
+KBUILD_EXTRA_SYMBOLS += $(obj)/../fmc-bus/kernel/Module.symvers
+KBUILD_EXTRA_SYMBOLS += /home/qtest/ohwr/coht/vmebridge/driver/Module.symvers
 
 obj-m := svec.o
 

@@ -99,7 +99,6 @@ ATTR_SHOW_CALLBACK(firmware_name)
 ATTR_STORE_CALLBACK(firmware_name)
 {
 	struct svec_dev *card = dev_get_drvdata(pdev);
-	int error;
 
 	char *tmp_buf = strim((char *)buf);
 
@@ -111,12 +110,6 @@ ATTR_STORE_CALLBACK(firmware_name)
 	}
 
 	strcpy(card->fw_name, buf);
-
-	error = svec_load_fpga_file(card, card->fw_name);
-
-	if (error) {
-		card->fw_name[0] = '\0';
-	}
 
 	return count;
 }
@@ -297,6 +290,38 @@ ATTR_STORE_CALLBACK(vme_addr)
 	return count;
 }
 
+ATTR_SHOW_CALLBACK(vme_addr32)
+{
+	struct svec_dev *card = dev_get_drvdata(pdev);
+	unsigned long addr = card->vme_raw_addr >> 2;
+	return snprintf(buf, PAGE_SIZE, "0x%lx\n", addr);
+}
+
+ATTR_STORE_CALLBACK(vme_addr32)
+{
+	uint32_t addr;
+	int error;
+	char *tmp_buf;
+	struct svec_dev *card = dev_get_drvdata(pdev);
+	
+	tmp_buf = strim((char *)buf);
+	error = kstrtoul(buf, 0, (unsigned long *)  &addr);
+	if (error != 0) 
+		return error;
+
+	addr = addr << 2;
+
+	if (addr >= card->cfg_cur.vme_base + card->cfg_cur.vme_size)
+		return -EINVAL;
+
+	if (addr & 3)
+		return -EINVAL;
+
+	card->vme_raw_addr = addr;
+
+	return count;
+}
+
 ATTR_SHOW_CALLBACK(vme_data)
 {
 	struct svec_dev *card = dev_get_drvdata(pdev);
@@ -413,13 +438,36 @@ ATTR_STORE_CALLBACK(configured)
 	struct svec_dev *card = dev_get_drvdata(pdev);
 	int error;
 
-	if (!svec_validate_configuration(card->dev, &card->cfg_new))
+        char *tmp_buf =  strim((char *)buf);
+        int cmd_type;
+
+	error = kstrtoint(tmp_buf, 0, & cmd_type);
+        if (error != 0) 
+		return error;
+
+	if (cmd_type == 0) {
+		error = svec_fw_cmd_reset (card);
+		/// @todo unconfigure
+	} else if (cmd_type == 1) {
+
+		if (!svec_validate_configuration(card->dev, &card->cfg_new))
+			return -EINVAL;
+
+		card->cfg_new.configured = 1;
+		card->cfg_cur = card->cfg_new;
+
+
+		error = svec_load_fpga_file(card, card->fw_name);
+		if (error != 0)
+			return error;
+
+
+		error = svec_reconfigure(card);
+	} else if (cmd_type == 1) {
+		error = svec_fw_cmd_program(card);
+	} else {
 		return -EINVAL;
-
-	card->cfg_new.configured = 1;
-	card->cfg_cur = card->cfg_new;
-
-	error = svec_reconfigure(card);
+	}
 
 	if (error)
 		return error;
@@ -489,7 +537,9 @@ static DEVICE_ATTR(use_fmc,
 /*
   Configuration status/commit attribute:
   - read: 1 if the VME interface is correctly configured, 0 otherwise
+  - write: 0 to reset card
   - write: 1 to commit the new VME configuration
+  - write: 2 to load firmware from buffer
   */
 
 static DEVICE_ATTR(configured,
@@ -499,6 +549,9 @@ static DEVICE_ATTR(configured,
 /*
   Raw VME read/write access, for debugging purposes
 */
+static DEVICE_ATTR(vme_addr32,
+		   S_IWUSR | S_IRUGO, svec_show_vme_addr32, svec_store_vme_addr32);
+
 static DEVICE_ATTR(vme_addr,
 		   S_IWUSR | S_IRUGO, svec_show_vme_addr, svec_store_vme_addr);
 
@@ -517,6 +570,7 @@ static struct attribute *svec_attrs[] = {
 	&dev_attr_use_vic.attr,
 	&dev_attr_use_fmc.attr,
 	&dev_attr_configured.attr,
+	&dev_attr_vme_addr32.attr,
 	&dev_attr_vme_addr.attr,
 	&dev_attr_vme_data.attr,
 	&dev_attr_slot.attr,
