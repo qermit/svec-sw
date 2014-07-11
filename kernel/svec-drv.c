@@ -799,10 +799,9 @@ static int svec_probe(struct device *pdev, unsigned int ndev)
 
 	return 0;
 
-	svec_remove_sysfs_files(svec);
-      failed_fw_name:
+failed_fw_name:
 	/// @todo cleanup what have beend done in svec_check_bootloader_present
-      failed:
+failed:
 	kfree(svec);
 
 	return error;
